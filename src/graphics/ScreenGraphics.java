@@ -52,8 +52,8 @@ public class ScreenGraphics extends JPanel implements Runnable, MouseListener, M
 		while(running){
 			repaint();
 			
-			if (System.nanoTime() - nanoTime >= 10000) {
-				nanoTime = System.nanoTime() + System.nanoTime() - nanoTime - 5000;
+			if (System.nanoTime() - nanoTime >= 1000000) {
+				nanoTime = System.nanoTime();
 				tick();
 			}
 		}
@@ -69,13 +69,14 @@ public class ScreenGraphics extends JPanel implements Runnable, MouseListener, M
 	public void paint(Graphics g){
 		Graphics2D g2d = (Graphics2D) g;
 		
+		if(displayWarmUp != 0) { csdisplay.refreshDisplay(); cscontrol.refreshDisplay(); displayWarmUp--; }
 		cscontrol.draw(g2d);
-		if(displayWarmUp != 0) { csdisplay.refreshDisplay(); displayWarmUp--; }
 		csdisplay.draw(g2d);
 	}
 	
 	public void tick(){
 		csdisplay.tick();
+		cscontrol.tick();
 	}
 
 	@Override

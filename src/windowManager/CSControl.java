@@ -10,6 +10,7 @@ import java.io.UnsupportedEncodingException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 
 import graphCore.Coord;
 import graphCore.Point;
@@ -30,6 +31,10 @@ public class CSControl {
 	public static Color borderColor = new Color(150,150,150),
 					    bgColor     = new Color(255,255,255);
 	
+	private static boolean displayChanged = true;
+	
+	private static ArrayList<ModeButton> modebuttons = new ArrayList<ModeButton>();
+	
 	public CSControl() {
 		HEIGHT = ScreenGraphics.FRAME_HEIGHT;
 		
@@ -38,6 +43,31 @@ public class CSControl {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+		
+		int rowDim = 70;
+		
+		//modebuttons.add(new ModeButton(POS_X+10+0*rowDim, POS_Y+10+0*rowDim, 0, ".png"));
+		modebuttons.add(new ModeButton(POS_X+10+0*rowDim, POS_Y+10+0*rowDim, -1, "Potlood.png"));
+		
+		modebuttons.add(new ModeButton(POS_X+10+0*rowDim, POS_Y+10+2*rowDim, 2, "PuntAdd.png"));
+		
+		modebuttons.add(new ModeButton(POS_X+10+0*rowDim, POS_Y+10+3*rowDim, 3, "AutoWegAdd.png"));
+		modebuttons.add(new ModeButton(POS_X+10+1*rowDim, POS_Y+10+3*rowDim, 4, "FietspadAdd.png"));
+		
+		modebuttons.add(new ModeButton(POS_X+10+0*rowDim, POS_Y+10+4*rowDim, 5, "StoplichtAdd.png"));
+		modebuttons.add(new ModeButton(POS_X+10+1*rowDim, POS_Y+10+4*rowDim, 6, "ZebrapadAdd.png"));
+		
+		modebuttons.add(new ModeButton(POS_X+10+0*rowDim, POS_Y+10+5*rowDim, 7, "TekstAdd.png"));
+		modebuttons.add(new ModeButton(POS_X+10+1*rowDim, POS_Y+10+5*rowDim, 8, "ImageImport.png"));
+		
+		modebuttons.add(new ModeButton(POS_X+10+0*rowDim, POS_Y+10+7*rowDim, 1, "MuisPrullenbak.png"));
+		
+		modebuttons.add(new ModeButton(POS_X+10+0*rowDim, POS_Y+10+9*rowDim, 9, "savebutton.png"));
+		modebuttons.add(new ModeButton(POS_X+10+1*rowDim, POS_Y+10+9*rowDim, 10, "stateimport.png"));
+	}
+	
+	public static void refreshDisplay() {
+		displayChanged = true;
 	}
 	
 	public int findIndex(ArrayList<Coord> coords, Coord c) {
@@ -60,6 +90,8 @@ public class CSControl {
 		ArrayList<Bend> bends = new ArrayList<Bend>();
 		ArrayList<Road> roads = new ArrayList<Road>();
 		
+		split = Arrays.copyOf(split, split.length-1);
+		
 		for(int i = 0; i < split.length; i++) {
 			split[i] = split[i].replace('<', '0');
 			prop = split[i].split(",");
@@ -69,7 +101,7 @@ public class CSControl {
 				bends.add(new Bend(Double.parseDouble(prop[3]), Double.parseDouble(prop[4])));
 				break;
 			case "Line":
-				roads.add(new Road(bends.get(Integer.parseInt(prop[3])-roads.size()-1), bends.get(Integer.parseInt(prop[4])-roads.size()-1)));
+				roads.add(new Road(bends.get(Integer.parseInt(prop[3])-1), bends.get(Integer.parseInt(prop[4])-1)));
 				break;
 			}
 		}
@@ -105,44 +137,33 @@ public class CSControl {
 		writer.close();
 	}
 	
+	public void tick() {
+		for(ModeButton mb : modebuttons) {
+			mb.tick();
+		}
+	}
 	public void draw(Graphics2D g2d) {
-		g2d.clearRect(POS_X, POS_Y, WIDTH, HEIGHT);
-		
-		g2d.setColor(borderColor);
-		g2d.drawRect(POS_X, POS_Y, WIDTH, HEIGHT);
-		
-		g2d.setColor(bgColor);
-		g2d.fillRect(POS_X+1, POS_Y+1, WIDTH-2, HEIGHT-2);
-		
-		g2d.setColor(Color.GREEN);
-		g2d.fillRect(POS_X+1, 1, MainWindow.FRAME_WIDTH-702, 98);
-		g2d.setColor(Color.BLACK);
-		g2d.drawString("Edit", POS_X+10, 50);
-		
-		if(EDIT_MODE) {
-			g2d.setColor(Color.GREEN);
-			g2d.fillRect(POS_X+1, 120, MainWindow.FRAME_WIDTH-702, 98);
-			g2d.setColor(Color.BLACK);
-			g2d.drawString("Save", POS_X+10, 170);
+		if (displayChanged) {
+			g2d.clearRect(POS_X, POS_Y, WIDTH, HEIGHT);
 			
-			g2d.setColor(Color.GREEN);
-			g2d.fillRect(POS_X+1, 300, MainWindow.FRAME_WIDTH-702, 30);
-			g2d.setColor(Color.BLACK);
-			g2d.drawString("Add Point", POS_X+10, 310);
-			g2d.setColor(Color.GREEN);
-			g2d.fillRect(POS_X+1, 340, MainWindow.FRAME_WIDTH-702, 30);
-			g2d.setColor(Color.BLACK);
-			g2d.drawString("Add Line", POS_X+10, 350);
+			g2d.setColor(borderColor);
+			g2d.drawRect(POS_X, POS_Y, WIDTH, HEIGHT);
+			
+			g2d.setColor(bgColor);
+			g2d.fillRect(POS_X+1, POS_Y+1, WIDTH-2, HEIGHT-2);
+			
+			if(EDIT_MODE) {
+				for(ModeButton mb : modebuttons) {
+					mb.draw(g2d);
+				}
+			} else {
+				modebuttons.get(0).draw(g2d);
+			}
 		}
 	}
 	
 	public void mouseClick(MouseEvent e) {
-		
 		Vector2d mouseV = new Vector2d(e.getX(),e.getY());
-		
-		if(mouseV.inRange(POS_X+1, POS_X+1+WIDTH, 1, 98)){ // Edit Button
-			EDIT_MODE = EDIT_MODE ? false : true;
-		}
 		
 		if(EDIT_MODE) {
 			if(mouseV.inRange(POS_X+1, POS_X+1+WIDTH, 120, 218)) {
@@ -153,11 +174,13 @@ public class CSControl {
 				} catch (UnsupportedEncodingException e1) {
 					e1.printStackTrace();
 				}
-			} else if(mouseV.inRange(POS_X+1, POS_X+1+WIDTH, 300, 330)) {
-				CSDisplay.MODE = 1;
-			} else if(mouseV.inRange(POS_X+1, POS_X+1+WIDTH, 340, 370)) {
-				CSDisplay.MODE = 2;
 			}
+			
+			for(ModeButton mb : modebuttons) {
+				mb.attemptToClick(mouseV);
+			}
+		} else {
+			modebuttons.get(0).attemptToClick(mouseV);
 		}
 		
 	}

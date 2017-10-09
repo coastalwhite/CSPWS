@@ -18,6 +18,9 @@ public class Road extends Line {
 		this.b2 = ip2;
 	}
 	
+	public Bend b1() { return this.b1; }
+	public Bend b2() { return this.b2; }
+	
 	private final static boolean inRange(double i, double c1, double c2) {
 		double min = c1,
 			max = c2;

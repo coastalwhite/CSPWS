@@ -70,28 +70,57 @@ public class CSDisplay {
 		displayChanged = true;
 	}
 	
-	public Vector2d getBendAtLocation(Vector2d v) {
+	public Object getObjectAtLocation(Vector2d v) {
 		Vector2d bv;
 		
 		for(Bend b : points) {
 			bv = new Vector2d(b.pos().X(), b.pos().Y());
 			if(bv.difVector(v).length() <= Point.radius*Math.pow(displayZoom, -1)) {
-				return bv;
+				return b;
 			}
 		}
 		
-		Vector2d rv, p1v, p2v;
+		Vector2d p1v, p2v;
 		
 		for(Road r : lines) {
-			rv = new Vector2d((r.p1().pos().X()+r.p2().pos().X())/2, (r.p1().pos().Y()+r.p2().pos().Y())/2);
 			p1v = new Vector2d(r.p1().pos().X(), r.p1().pos().Y());
 			p2v = new Vector2d(r.p2().pos().X(), r.p2().pos().Y());
 			if(p1v.difVector(v).length()+p2v.difVector(v).length() <= (p1v.difVector(p2v).length()+Road.zoomRange*Math.pow(displayZoom, -1))) {
-				return rv;
+				return r;
 			}
 		}
 		
 		return null;
+	}
+	public Vector2d getVectorAtLocation(Vector2d v) {
+		Object o = getObjectAtLocation(v);
+		
+		if (o == null) {
+			return v;
+		}
+		
+		if(o.getClass() == Road.class) {
+			Road r = (Road) o;
+			return new Vector2d((r.p1().pos().X()+r.p2().pos().X())/2, (r.p1().pos().Y()+r.p2().pos().Y())/2);
+		} else if(o.getClass() == Bend.class) {
+			Bend b = (Bend) o;
+			return new Vector2d(b.pos().X(), b.pos().Y());
+		}
+		
+		return v;
+	}
+	public ArrayList<Integer> getRoadsWithBend(Bend b) {
+		ArrayList<Integer> roadList = new ArrayList<Integer>();
+		
+		int i = 0;
+		for(Road r : lines) {
+			if(r.b1().equals(b) || r.b2().equals(b)) {
+				roadList.add(i);
+			}
+			i++;
+		}
+		
+		return roadList;
 	}
 	
 	// Event Handlers
@@ -99,38 +128,66 @@ public class CSDisplay {
 		this.CLICK_X = e.getX();
 		this.CLICK_Y = e.getY();
 		
+		Vector2d mouseV = new Vector2d(CLICK_X,CLICK_Y).getTransformRS(displayZoom).sumVector(displayPosition);
 		if(e.getButton() == 1) {
 			CLICK_DOWN = true;
 		}
 		
-		if(MODE == 1 && e.getButton() == 3) { // ADD POINT
-			Vector2d mouseV = new Vector2d(CLICK_X,CLICK_Y).getTransformRS(displayZoom).sumVector(displayPosition);
-			points.add(new Bend(mouseV.X(), mouseV.Y()));
-			
-			displayChanged = true;
-		} else if (MODE == 2 && e.getButton() == 3) { // ADD LINE
-			Vector2d bv;
-			Bend tb = null;
-			for(Bend b : points) {
-				bv = new Vector2d(b.pos().X(), b.pos().Y());
-				if(bv.difVector(new Vector2d(CLICK_X, CLICK_Y).getTransformRS(displayZoom).sumVector(displayPosition)).length() <= Point.radius*Math.pow(displayZoom, -1)) {
-					tb = b;
-					continue;
-				}
-			}
-			
-			if(SELECTED_POINT != null) {
-				if(tb == null) {
-					Vector2d mouseV = new Vector2d(CLICK_X,CLICK_Y).getTransformRS(displayZoom).sumVector(displayPosition);
-					tb = new Bend(mouseV.X(), mouseV.Y());
-					points.add(tb);
+		if(e.getButton() == 3) {
+			switch (MODE) {
+			case 0:
+				break;
+			case 1: // Remove objects
+				Object o = getObjectAtLocation(mouseV);
+				if (o == null) {
+					break;
 				}
 				
-				lines.add(new Road(tb,SELECTED_POINT));
-				SELECTED_POINT = null;
+				if(o.getClass() == Bend.class) {
+					points.remove(points.indexOf((Bend) o));
+					
+					ArrayList<Integer> roads = getRoadsWithBend((Bend) o);
+					int j = 0;
+					for(int i : roads) {
+						lines.remove(i-j++);
+					}
+					
+					displayChanged = true;
+				} else if(o.getClass() == Road.class) {
+					lines.remove(lines.indexOf((Road) o));
+					
+					displayChanged = true;
+				}
+				break;
+			case 2: // Add Point
+				points.add(new Bend(mouseV.X(), mouseV.Y()));
+				
 				displayChanged = true;
-			} else if(SELECTED_POINT == null && tb != null) {
-				SELECTED_POINT = tb;
+				break;
+			case 3: // Add Line
+				Vector2d bv;
+				Bend tb = null;
+				for(Bend b : points) {
+					bv = new Vector2d(b.pos().X(), b.pos().Y());
+					if(bv.difVector(mouseV).length() <= Point.radius*Math.pow(displayZoom, -1)) {
+						tb = b;
+						continue;
+					}
+				}
+				
+				if(SELECTED_POINT != null) {
+					if(tb == null) {
+						tb = new Bend(mouseV.X(), mouseV.Y());
+						points.add(tb);
+					}
+					
+					lines.add(new Road(tb,SELECTED_POINT));
+					SELECTED_POINT = null;
+					displayChanged = true;
+				} else if(SELECTED_POINT == null && tb != null) {
+					SELECTED_POINT = tb;
+				}
+				break;
 			}
 		}
 	}
@@ -168,10 +225,7 @@ public class CSDisplay {
 			
 			Vector2d mPos = new Vector2d(mouseX, mouseY).getTransformRS(displayZoom).sumVector(displayPosition);
 			
-			Vector2d bv = getBendAtLocation(mPos);
-			if(bv != null) {
-				mPos = bv;
-			}
+			mPos = getVectorAtLocation(mPos);
 			
 			Vector2d relPos = new Vector2d((double) (mouseX)/WIDTH, (double) (mouseY)/HEIGHT);
 			Vector2d newMPOS = new Vector2d(relPos.X()*((WIDTH*displayZoom)+(zoomConstant.X()*wr)), relPos.Y()*((HEIGHT*displayZoom)+(zoomConstant.Y()*wr)));
