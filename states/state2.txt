@@ -1,0 +1,5 @@
+<1,Point,Type1,100.0,100.0>
+<2,Point,Type1,500.0,300.0>
+<3,Point,Type1,220.0,350.0>
+<4,Point,Type1,50.0,150.0>
+<5,Line,Type1,1,3>
