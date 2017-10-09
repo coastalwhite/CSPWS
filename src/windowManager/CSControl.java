@@ -32,6 +32,12 @@ public class CSControl {
 	
 	public CSControl() {
 		HEIGHT = ScreenGraphics.FRAME_HEIGHT;
+		
+		try {
+			this.loadState("state1");
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 	
 	public int findIndex(ArrayList<Coord> coords, Coord c) {

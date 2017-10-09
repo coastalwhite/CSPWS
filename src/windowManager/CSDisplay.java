@@ -2,15 +2,12 @@ package windowManager;
 
 import java.awt.Color;
 import java.awt.Graphics2D;
-import java.awt.Image;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
-import java.io.File;
-import java.io.IOException;
+import java.awt.geom.AffineTransform;
 import java.util.ArrayList;
 
-import javax.imageio.ImageIO;
-
+import graphCore.Line;
 import graphCore.Point;
 import roadGraph.*;
 
@@ -27,7 +24,7 @@ public class CSDisplay {
 	private static boolean displayChanged;
 	
 	private static Bend SELECTED_POINT = null;
-	private static boolean ADDED_POINT = false;
+	private static Vector2d[] point_vectors = new Vector2d [2];
 	public static int MODE = 0;
 	
 	private int CLICK_X, CLICK_Y;
@@ -40,13 +37,6 @@ public class CSDisplay {
 	public static ArrayList<Road> lines = new ArrayList<Road>();
 	
 	public CSDisplay() {
-		points.add(new Bend(100,100));
-		points.add(new Bend(500,300));
-		points.add(new Bend(220,350));
-		points.add(new Bend(50,150));
-		
-		lines.add(new Road(new Bend(100,100), new Bend(220,350)));
-		
 		WIDTH = 1000;
 		HEIGHT = 900;
 		POS_X = 0;
@@ -114,9 +104,8 @@ public class CSDisplay {
 		}
 		
 		if(MODE == 1 && e.getButton() == 3) { // ADD POINT
-			ADDED_POINT = true;
-			Vector2d
-			points.add(new Bend(CLICK_X, CLICK_Y));
+			Vector2d mouseV = new Vector2d(CLICK_X,CLICK_Y).getTransformRS(displayZoom).sumVector(displayPosition);
+			points.add(new Bend(mouseV.X(), mouseV.Y()));
 			
 			displayChanged = true;
 		} else if (MODE == 2 && e.getButton() == 3) { // ADD LINE
@@ -130,10 +119,15 @@ public class CSDisplay {
 				}
 			}
 			
-			if(SELECTED_POINT != null && tb != null) {
+			if(SELECTED_POINT != null) {
+				if(tb == null) {
+					Vector2d mouseV = new Vector2d(CLICK_X,CLICK_Y).getTransformRS(displayZoom).sumVector(displayPosition);
+					tb = new Bend(mouseV.X(), mouseV.Y());
+					points.add(tb);
+				}
+				
 				lines.add(new Road(tb,SELECTED_POINT));
 				SELECTED_POINT = null;
-				
 				displayChanged = true;
 			} else if(SELECTED_POINT == null && tb != null) {
 				SELECTED_POINT = tb;
@@ -150,6 +144,17 @@ public class CSDisplay {
 		}
 		
 		displayChanged = true;
+	}
+	public void mouseMove(MouseEvent e) {
+		if(SELECTED_POINT != null) {
+			Vector2d v1 = new Vector2d(SELECTED_POINT.pos().X(), SELECTED_POINT.pos().Y());
+			Vector2d v2 = new Vector2d(e.getX(), e.getY()).getTransformRS(displayZoom).sumVector(displayPosition);
+			
+			point_vectors[0] = v1;
+			point_vectors[1] = v2;
+			
+			displayChanged = true;
+		}
 	}
 	public void mouseReleased() {
 		CLICK_DOWN = false;
@@ -208,6 +213,45 @@ public class CSDisplay {
 			
 			for(Bend p : points){
 				p.attemptToRender(g2d, displayZoom, displayChanged);
+			}
+			
+			if(SELECTED_POINT != null) {
+				Vector2d v1 = linTrans(point_vectors[0]);
+				Vector2d v2 = linTrans(point_vectors[1]);
+				
+				// Calculations
+				int yOffset = (int) Math.round(Math.ceil(Line.lineWidth / 2) * Math.pow(displayZoom, -1));
+				Vector2d difVector = v1.difVector(v2); 
+				
+				double distance = difVector.length();
+				
+				double dx = difVector.X();
+				double dy = difVector.Y();
+				
+				double angle = Math.atan(dy/dx);
+				
+				if(dx>=0){ // Check for 180 degree turns
+					angle += Math.PI;
+				}
+				
+				// Rendering
+				AffineTransform t = g2d.getTransform(); // Saving current rotation state
+				g2d.rotate(
+						   angle,
+						   v1.X(),
+						   v1.Y()
+						  ); // Rotating next render
+				
+				// Actual square rendering
+				g2d.setColor(Line.color);
+				g2d.fillRect(
+								(int) Math.round(v1.X()),
+								(int) Math.round(v1.Y()) - yOffset,
+								(int) Math.round(distance),
+								(int) Math.round(Line.lineWidth*Math.pow(displayZoom, -1))
+						    );
+			
+				g2d.setTransform(t); // Returning to old rotation state
 			}
 			
 			displayChanged = false;

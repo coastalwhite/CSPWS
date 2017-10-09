@@ -42,7 +42,7 @@ public class Line {
 		
 		double angle = Math.atan(dy/dx);
 		
-		if(dx>0){ // Check for 180 degree turns
+		if(dx>=0){ // Check for 180 degree turns
 			angle += Math.PI;
 		}
 		
