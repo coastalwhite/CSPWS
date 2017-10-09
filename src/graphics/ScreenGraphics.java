@@ -26,7 +26,7 @@ public class ScreenGraphics extends JPanel implements Runnable, MouseListener, M
 	
 	public static int FRAME_WIDTH, FRAME_HEIGHT, OFFSET_X, OFFSET_Y_TOP, OFFSET_Y_BOT;
 	public long nanoTime = 0;
-	public byte displayWarmUp = 8;
+	public byte displayWarmUp = 3;
 	
 	public CSDisplay csdisplay;
 	public CSControl cscontrol;
@@ -69,7 +69,7 @@ public class ScreenGraphics extends JPanel implements Runnable, MouseListener, M
 	public void paint(Graphics g){
 		Graphics2D g2d = (Graphics2D) g;
 		
-		if(displayWarmUp != 0) { csdisplay.refreshDisplay(); cscontrol.refreshDisplay(); displayWarmUp--; }
+		if(displayWarmUp != 0) { CSDisplay.refreshDisplay(); CSControl.refreshDisplay(); displayWarmUp--; }
 		cscontrol.draw(g2d);
 		csdisplay.draw(g2d);
 	}

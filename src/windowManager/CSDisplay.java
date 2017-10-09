@@ -183,6 +183,8 @@ public class CSDisplay {
 					
 					lines.add(new Road(tb,SELECTED_POINT));
 					SELECTED_POINT = null;
+					point_vectors[0] = null;
+					point_vectors[1] = null;
 					displayChanged = true;
 				} else if(SELECTED_POINT == null && tb != null) {
 					SELECTED_POINT = tb;
@@ -243,7 +245,7 @@ public class CSDisplay {
 	}
 	
 	public void draw(Graphics2D g2d) { // RENDER FUNCTION
-		if (this.displayChanged) {
+		if (displayChanged) {
 			g2d.clearRect(POS_X, POS_Y, WIDTH, HEIGHT);
 			
 			g2d.setColor(borderColor);
@@ -269,7 +271,7 @@ public class CSDisplay {
 				p.attemptToRender(g2d, displayZoom, displayChanged);
 			}
 			
-			if(SELECTED_POINT != null) {
+			if(SELECTED_POINT != null && point_vectors[0] != null) {
 				Vector2d v1 = linTrans(point_vectors[0]);
 				Vector2d v2 = linTrans(point_vectors[1]);
 				

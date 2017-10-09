@@ -13,8 +13,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 
 import graphCore.Coord;
-import graphCore.Point;
-import graphics.MainWindow;
 import graphics.ScreenGraphics;
 import roadGraph.Bend;
 import roadGraph.Road;
@@ -27,9 +25,10 @@ public class CSControl {
 		        	  POS_Y = 0;
 	
 	public static boolean EDIT_MODE = false;
+	public static int MODE = 0;
 
 	public static Color borderColor = new Color(150,150,150),
-					    bgColor     = new Color(255,255,255);
+					    bgColor     = new Color(205,205,205);
 	
 	private static boolean displayChanged = true;
 	
@@ -39,7 +38,7 @@ public class CSControl {
 		HEIGHT = ScreenGraphics.FRAME_HEIGHT;
 		
 		try {
-			this.loadState("state1");
+			CSControl.loadState("states\\state1.txt");
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -62,15 +61,18 @@ public class CSControl {
 		
 		modebuttons.add(new ModeButton(POS_X+10+0*rowDim, POS_Y+10+7*rowDim, 1, "MuisPrullenbak.png"));
 		
-		modebuttons.add(new ModeButton(POS_X+10+0*rowDim, POS_Y+10+9*rowDim, 9, "savebutton.png"));
-		modebuttons.add(new ModeButton(POS_X+10+1*rowDim, POS_Y+10+9*rowDim, 10, "stateimport.png"));
+		modebuttons.add(new ModeButton(POS_X+10+0*rowDim, POS_Y+10+9*rowDim, -2, "savebutton.png"));
+		modebuttons.add(new ModeButton(POS_X+10+1*rowDim, POS_Y+10+9*rowDim, -3, "stateimport.png"));
 	}
 	
+	public static boolean getDisplayChanged() {
+		return displayChanged;
+	}
 	public static void refreshDisplay() {
 		displayChanged = true;
 	}
 	
-	public int findIndex(ArrayList<Coord> coords, Coord c) {
+	private static int findIndex(ArrayList<Coord> coords, Coord c) {
 		int i = 0;
 		for(Coord p : coords) {
 			if(p.X() == c.X() && p.Y() == c.Y()) {
@@ -82,8 +84,8 @@ public class CSControl {
 		return -1;
 	}
 	
-	public void loadState(String stateName) throws IOException {
-		String s = new String(Files.readAllBytes(Paths.get("states\\state1.txt")));
+	public static void loadState(String path) throws IOException {
+		String s = new String(Files.readAllBytes(Paths.get(path)));
 		String[] split = s.split(">");
 		String[] prop;
 		
@@ -112,8 +114,8 @@ public class CSControl {
 		CSDisplay.refreshDisplay();
 	}
 	
-	public void saveState(String stateName) throws FileNotFoundException, UnsupportedEncodingException {
-		PrintWriter writer = new PrintWriter("states\\" + stateName + ".txt", "UTF-8");
+	public static void saveState(String path) throws FileNotFoundException, UnsupportedEncodingException {
+		PrintWriter writer = new PrintWriter(path, "UTF-8");
 		int i = 0;
 		
 		ArrayList<Coord> coords = new ArrayList<Coord>();
@@ -128,8 +130,8 @@ public class CSControl {
 		for(Road r : CSDisplay.lines) {
 			i++;
 			
-			b1 = this.findIndex(coords, r.p1().pos());
-			b2 = this.findIndex(coords, r.p2().pos());
+			b1 = findIndex(coords, r.p1().pos());
+			b2 = findIndex(coords, r.p2().pos());
 			
 			writer.println("<" + Integer.toString(i) + ",Line,Type1," + Integer.toString(b1+1) + "," + Integer.toString(b2+1) + ">");
 		}
@@ -159,6 +161,8 @@ public class CSControl {
 			} else {
 				modebuttons.get(0).draw(g2d);
 			}
+			
+			displayChanged = false;
 		}
 	}
 	
