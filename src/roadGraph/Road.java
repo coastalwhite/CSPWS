@@ -3,6 +3,7 @@ package roadGraph;
 import java.awt.Graphics2D;
 
 import graphCore.*;
+import windowManager.CSControl;
 import windowManager.CSDisplay;
 
 public class Road extends Line {
@@ -105,7 +106,7 @@ public class Road extends Line {
 			w1 = new Vector2d(CSDisplay.WIDTH, 0);
 			w2 = new Vector2d(CSDisplay.WIDTH, CSDisplay.HEIGHT);
 
-			if(isCrossing(v1, v2, w1, w2)) { doDisplay = true; }
+			if(isCrossing(v1, v2, w1, w2)) { doDisplay = true; CSControl.refreshDisplay(); }
 		}
 		
 		if(doDisplay) {

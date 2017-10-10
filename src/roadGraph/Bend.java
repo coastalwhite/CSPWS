@@ -3,6 +3,7 @@ package roadGraph;
 import java.awt.Graphics2D;
 
 import graphCore.Point;
+import windowManager.CSControl;
 import windowManager.CSDisplay;
 
 public class Bend extends Point {
@@ -23,22 +24,23 @@ public class Bend extends Point {
 		
 		if(!doDisplay) {
 			// TOP
-			if(!this.doDisplay) { this.doDisplay = v1.inRange(-1 * radius, CSDisplay.WIDTH+radius, -1 * radius, 0); }
+			this.doDisplay = v1.inRange(-1 * radius, CSDisplay.WIDTH+radius, -1 * radius, 0);
 		}
 		
 		if(!doDisplay) {
 			// BOTTOM
-			if(!this.doDisplay) { this.doDisplay = v1.inRange(-1 * radius, CSDisplay.WIDTH+radius, CSDisplay.HEIGHT, CSDisplay.HEIGHT+radius); }
+			this.doDisplay = v1.inRange(-1 * radius, CSDisplay.WIDTH+radius, CSDisplay.HEIGHT, CSDisplay.HEIGHT+radius);
 		}
 		
 		if(!doDisplay) {
 			// LEFT
-			if(!this.doDisplay) { this.doDisplay = v1.inRange(-1 * radius, 0, -1 * radius, CSDisplay.HEIGHT+radius); }
+			this.doDisplay = v1.inRange(-1 * radius, 0, -1 * radius, CSDisplay.HEIGHT+radius);
 		}
 		
 		if(!doDisplay) {
 			// RIGHT
-			if(!this.doDisplay) { this.doDisplay = v1.inRange(CSDisplay.WIDTH, CSDisplay.WIDTH+radius, -1 * radius, CSDisplay.HEIGHT+radius); }
+			this.doDisplay = v1.inRange(CSDisplay.WIDTH, CSDisplay.WIDTH+radius, -1 * radius, CSDisplay.HEIGHT+radius);
+			CSControl.refreshDisplay();
 		}
 		
 		if(doDisplay) {

@@ -10,7 +10,7 @@ public class Line {
 	protected Point p1, p2;
 	protected double weight;
 	public static int lineWidth = 2;
-	public static Color color = Color.GRAY;
+	public Color color = Color.GRAY;
 	
 	public Line(Point ip1, Point ip2){
 		// INIT

@@ -155,11 +155,14 @@ public class CSDisplay {
 		this.CLICK_Y = e.getY();
 		
 		Vector2d mouseV = new Vector2d(CLICK_X,CLICK_Y).getTransformRS(displayZoom).sumVector(displayPosition);
-		if(e.getButton() == 1) {
+		if(e.getButton() == 1 && mouseV.inRange(POS_X, POS_X+WIDTH, POS_Y, POS_Y+HEIGHT)) {
 			CLICK_DOWN = true;
 		}
 		
 		if(e.getButton() == 3) {
+			Vector2d bv;
+			Bend tb;
+			
 			switch (MODE) {
 			case 0:
 				break;
@@ -190,9 +193,8 @@ public class CSDisplay {
 				
 				displayChanged = true;
 				break;
-			case 3: // Add Line
-				Vector2d bv;
-				Bend tb = null;
+			case 3: // Add Car Road
+				tb = null;
 				for(Bend b : points) {
 					bv = new Vector2d(b.pos().X(), b.pos().Y());
 					if(bv.difVector(mouseV).length() <= Point.radius*Math.pow(displayZoom, -1)) {
@@ -207,7 +209,32 @@ public class CSDisplay {
 						points.add(tb);
 					}
 					
-					lines.add(new Road(tb,SELECTED_POINT));
+					lines.add(new CarRoad(tb,SELECTED_POINT));
+					SELECTED_POINT = null;
+					point_vectors[0] = null;
+					point_vectors[1] = null;
+					displayChanged = true;
+				} else if(SELECTED_POINT == null && tb != null) {
+					SELECTED_POINT = tb;
+				}
+				break;
+			case 4: // Add Bicycle Road
+				tb = null;
+				for(Bend b : points) {
+					bv = new Vector2d(b.pos().X(), b.pos().Y());
+					if(bv.difVector(mouseV).length() <= Point.radius*Math.pow(displayZoom, -1)) {
+						tb = b;
+						continue;
+					}
+				}
+				
+				if(SELECTED_POINT != null) {
+					if(tb == null) {
+						tb = new Bend(mouseV.X(), mouseV.Y());
+						points.add(tb);
+					}
+					
+					lines.add(new BicycleRoad(tb,SELECTED_POINT));
 					SELECTED_POINT = null;
 					point_vectors[0] = null;
 					point_vectors[1] = null;
@@ -409,7 +436,11 @@ public class CSDisplay {
 						  ); // Rotating next render
 				
 				// Actual square rendering
-				g2d.setColor(Line.color);
+				if(MODE == 3) {
+					g2d.setColor(Color.BLUE);
+				} else {
+					g2d.setColor(Color.RED);
+				}
 				g2d.fillRect(
 								(int) Math.round(v1.X()),
 								(int) Math.round(v1.Y()) - yOffset,

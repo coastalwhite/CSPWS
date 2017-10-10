@@ -14,10 +14,7 @@ import java.util.Arrays;
 
 import graphCore.Coord;
 import graphics.ScreenGraphics;
-import roadGraph.Bend;
-import roadGraph.Road;
-import roadGraph.Text;
-import roadGraph.Vector2d;
+import roadGraph.*;
 
 public class CSControl {
 	public static int WIDTH = 200,
@@ -44,7 +41,7 @@ public class CSControl {
 			e.printStackTrace();
 		}
 		
-		int rowDim = 70;
+		int rowDim = 60;
 		
 		/*
 		 * -5 = Add New State
@@ -122,8 +119,18 @@ public class CSControl {
 			case "Point": // <#ID,Point,Type,#X,#Y> 
 				bends.add(new Bend(Double.parseDouble(prop[3]), Double.parseDouble(prop[4])));
 				break;
-			case "Line": // <#ID,Line,Type,#PointID1,#PointID2> 
-				roads.add(new Road(bends.get(Integer.parseInt(prop[3])-1), bends.get(Integer.parseInt(prop[4])-1)));
+			case "Line": // <#ID,Line,Type,#PointID1,#PointID2>
+				switch (prop[2]) {
+				case "Type1":
+					roads.add(new CarRoad(bends.get(Integer.parseInt(prop[3])-1), bends.get(Integer.parseInt(prop[4])-1)));
+					break;
+				case "Type2":
+					roads.add(new BicycleRoad(bends.get(Integer.parseInt(prop[3])-1), bends.get(Integer.parseInt(prop[4])-1)));
+					break;
+				default:
+					roads.add(new Road(bends.get(Integer.parseInt(prop[3])-1), bends.get(Integer.parseInt(prop[4])-1)));
+					break;
+				}	
 				break;
 			case "Text": // <#ID,Text,Type,#X,#Y,#Angle,TextInput>
 				texts.add(new Text(Double.parseDouble(prop[3]), Double.parseDouble(prop[4]), Double.parseDouble(prop[5]), prop[6]));
@@ -157,7 +164,15 @@ public class CSControl {
 			b1 = findIndex(coords, r.p1().pos());
 			b2 = findIndex(coords, r.p2().pos());
 			
-			writer.println("<" + Integer.toString(i) + ",Line,Type1," + Integer.toString(b1+1) + "," + Integer.toString(b2+1) + ">");
+			String type = "Type0";
+			
+			if(r.getClass() == CarRoad.class) {
+				type = "Type1";
+			} else if(r.getClass() == BicycleRoad.class) {
+				type = "Type2";
+			}
+			
+			writer.println("<" + Integer.toString(i) + ",Line," + type + "," + Integer.toString(b1+1) + "," + Integer.toString(b2+1) + ">");
 		}
 		for(Text t : CSDisplay.textObjects) {
 			i++;
