@@ -16,6 +16,7 @@ import graphCore.Coord;
 import graphics.ScreenGraphics;
 import roadGraph.Bend;
 import roadGraph.Road;
+import roadGraph.Text;
 import roadGraph.Vector2d;
 
 public class CSControl {
@@ -45,6 +46,22 @@ public class CSControl {
 		
 		int rowDim = 70;
 		
+		/*
+		 * -5 = Add New State
+		 * -4 = Image Import & Use
+		 * -3 = State Import
+		 * -2 = Save State
+		 * -1 = Activate Edit Mode
+		 * 0 = Default View Mode
+		 * 1 = Remove Objects Mode
+		 * 2 = Add Points Mode
+		 * 3 = Add Car Road Mode
+		 * 4 = Add Bicycle Path Mode
+		 * 5 = Add Traffic Light Mode
+		 * 6 = Add Crossover Mode
+		 * 7 = Add Text Mode
+		 */
+		
 		//modebuttons.add(new ModeButton(POS_X+10+0*rowDim, POS_Y+10+0*rowDim, 0, ".png"));
 		modebuttons.add(new ModeButton(POS_X+10+0*rowDim, POS_Y+10+0*rowDim, -1, "Potlood.png"));
 		
@@ -57,12 +74,14 @@ public class CSControl {
 		modebuttons.add(new ModeButton(POS_X+10+1*rowDim, POS_Y+10+4*rowDim, 6, "ZebrapadAdd.png"));
 		
 		modebuttons.add(new ModeButton(POS_X+10+0*rowDim, POS_Y+10+5*rowDim, 7, "TekstAdd.png"));
-		modebuttons.add(new ModeButton(POS_X+10+1*rowDim, POS_Y+10+5*rowDim, 8, "ImageImport.png"));
+		modebuttons.add(new ModeButton(POS_X+10+1*rowDim, POS_Y+10+5*rowDim, -4, "ImageImport.png"));
 		
 		modebuttons.add(new ModeButton(POS_X+10+0*rowDim, POS_Y+10+7*rowDim, 1, "MuisPrullenbak.png"));
 		
-		modebuttons.add(new ModeButton(POS_X+10+0*rowDim, POS_Y+10+9*rowDim, -2, "savebutton.png"));
-		modebuttons.add(new ModeButton(POS_X+10+1*rowDim, POS_Y+10+9*rowDim, -3, "stateimport.png"));
+		modebuttons.add(new ModeButton(POS_X+10+0*rowDim, POS_Y+10+9*rowDim, -2, "SaveButton.png"));
+		modebuttons.add(new ModeButton(POS_X+10+1*rowDim, POS_Y+10+9*rowDim, -3, "StateImport.png"));
+		
+		modebuttons.add(new ModeButton(POS_X+10+0*rowDim, POS_Y+10+11*rowDim, -5, "NewState.png"));
 	}
 	
 	public static boolean getDisplayChanged() {
@@ -91,6 +110,7 @@ public class CSControl {
 		
 		ArrayList<Bend> bends = new ArrayList<Bend>();
 		ArrayList<Road> roads = new ArrayList<Road>();
+		ArrayList<Text> texts = new ArrayList<Text>();
 		
 		split = Arrays.copyOf(split, split.length-1);
 		
@@ -99,18 +119,22 @@ public class CSControl {
 			prop = split[i].split(",");
 			
 			switch(prop[1]) {
-			case "Point":
+			case "Point": // <#ID,Point,Type,#X,#Y> 
 				bends.add(new Bend(Double.parseDouble(prop[3]), Double.parseDouble(prop[4])));
 				break;
-			case "Line":
+			case "Line": // <#ID,Line,Type,#PointID1,#PointID2> 
 				roads.add(new Road(bends.get(Integer.parseInt(prop[3])-1), bends.get(Integer.parseInt(prop[4])-1)));
+				break;
+			case "Text": // <#ID,Text,Type,#X,#Y,#Angle,TextInput>
+				texts.add(new Text(Double.parseDouble(prop[3]), Double.parseDouble(prop[4]), Double.parseDouble(prop[5]), prop[6]));
 				break;
 			}
 		}
 		
 		CSDisplay.lines = roads;
 		CSDisplay.points = bends;
-	
+		CSDisplay.textObjects = texts;
+		
 		CSDisplay.refreshDisplay();
 	}
 	
@@ -134,6 +158,45 @@ public class CSControl {
 			b2 = findIndex(coords, r.p2().pos());
 			
 			writer.println("<" + Integer.toString(i) + ",Line,Type1," + Integer.toString(b1+1) + "," + Integer.toString(b2+1) + ">");
+		}
+		for(Text t : CSDisplay.textObjects) {
+			i++;
+			
+			writer.println("<" + Integer.toString(i) + ",Text,Type1," + Double.toString(t.X()) + "," + Double.toString(t.Y()) + "," + Double.toString(t.Angle()) + "," + t.text + ">");
+		}
+		
+		writer.close();
+	}
+	public static void saveLastState(ArrayList<Bend> bends, ArrayList<Road> roads, ArrayList<Text> texts) {
+		PrintWriter writer = null;
+		try {
+			writer = new PrintWriter("states\\lastState.txt", "UTF-8");
+		} catch (FileNotFoundException | UnsupportedEncodingException e) {
+			e.printStackTrace();
+		}
+		int i = 0;
+		
+		ArrayList<Coord> coords = new ArrayList<Coord>();
+		
+		for(Bend b : bends) {
+			i++;
+			coords.add(b.pos());
+			writer.println("<" + Integer.toString(i) + ",Point,Type1," + Double.toString(b.pos().X()) + "," + Double.toString(b.pos().Y()) + ">");
+		}
+		
+		int b1, b2;
+		for(Road r : roads) {
+			i++;
+			
+			b1 = findIndex(coords, r.p1().pos());
+			b2 = findIndex(coords, r.p2().pos());
+			
+			writer.println("<" + Integer.toString(i) + ",Line,Type1," + Integer.toString(b1+1) + "," + Integer.toString(b2+1) + ">");
+		}
+		for(Text t : texts) {
+			i++;
+			
+			writer.println("<" + Integer.toString(i) + ",Text,Type1," + Double.toString(t.X()) + "," + Double.toString(t.Y()) + "," + Double.toString(t.Angle()) + "," + t.text + ">");
 		}
 		
 		writer.close();

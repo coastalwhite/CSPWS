@@ -61,53 +61,51 @@ public class Road extends Line {
 		return (inRange(t,-1.0f,0.0f) && inRange(u,-1.0f,0.0f));
 	}
 
-	public void attemptToRender(Graphics2D g2d, double displayZoom, boolean displayChanged) {
+	public void attemptToRender(Graphics2D g2d, double displayZoom) {
 		Vector2d v1, v2;
 		
-		if(displayChanged) {
-			this.doDisplay = false;
+		this.doDisplay = false;
+		
+		v1 = CSDisplay.linTrans(new Vector2d(b1.pos().X(), b1.pos().Y()));
+		v2 = CSDisplay.linTrans(new Vector2d(b2.pos().X(), b2.pos().Y()));
+		
+		//System.out.println("X: " + v1.X());
+		
+		if(!this.doDisplay) { this.doDisplay = v1.inRange(-1 * lineWidth, CSDisplay.WIDTH+lineWidth, -1 * lineWidth, CSDisplay.HEIGHT+lineWidth); }
+		if(!this.doDisplay) { this.doDisplay = v2.inRange(-1 * lineWidth, CSDisplay.WIDTH+lineWidth, -1 * lineWidth, CSDisplay.HEIGHT+lineWidth); }
+		
+		Vector2d w1, w2;
+		
+		if(!doDisplay) {
+			// TOP
+			w1 = new Vector2d(0, 0);
+			w2 = new Vector2d(700, 0);
 			
-			v1 = CSDisplay.linTrans(new Vector2d(b1.pos().X(), b1.pos().Y()));
-			v2 = CSDisplay.linTrans(new Vector2d(b2.pos().X(), b2.pos().Y()));
-			
-			//System.out.println("X: " + v1.X());
-			
-			if(!this.doDisplay) { this.doDisplay = v1.inRange(-1 * lineWidth, CSDisplay.WIDTH+lineWidth, -1 * lineWidth, CSDisplay.HEIGHT+lineWidth); }
-			if(!this.doDisplay) { this.doDisplay = v2.inRange(-1 * lineWidth, CSDisplay.WIDTH+lineWidth, -1 * lineWidth, CSDisplay.HEIGHT+lineWidth); }
-			
-			Vector2d w1, w2;
-			
-			if(!doDisplay) {
-				// TOP
-				w1 = new Vector2d(0, 0);
-				w2 = new Vector2d(700, 0);
-				
-				if(isCrossing(v1, v2, w1, w2)) { doDisplay = true; }
-			}
-			
-			if(!doDisplay) {
-				// BOTTOM
-				w1 = new Vector2d(0, CSDisplay.HEIGHT);
-				w2 = new Vector2d(CSDisplay.WIDTH, CSDisplay.HEIGHT);
-	
-				if(isCrossing(v1, v2, w1, w2)) { doDisplay = true; }
-			}
-			
-			if(!doDisplay) {
-				// LEFT
-				w1 = new Vector2d(0, 0);
-				w2 = new Vector2d(0, CSDisplay.HEIGHT);
-	
-				if(isCrossing(v1, v2, w1, w2)) { doDisplay = true; }
-			}
-			
-			if(!doDisplay) {
-				// RIGHT
-				w1 = new Vector2d(CSDisplay.WIDTH, 0);
-				w2 = new Vector2d(CSDisplay.WIDTH, CSDisplay.HEIGHT);
-	
-				if(isCrossing(v1, v2, w1, w2)) { doDisplay = true; }
-			}
+			if(isCrossing(v1, v2, w1, w2)) { doDisplay = true; }
+		}
+		
+		if(!doDisplay) {
+			// BOTTOM
+			w1 = new Vector2d(0, CSDisplay.HEIGHT);
+			w2 = new Vector2d(CSDisplay.WIDTH, CSDisplay.HEIGHT);
+
+			if(isCrossing(v1, v2, w1, w2)) { doDisplay = true; }
+		}
+		
+		if(!doDisplay) {
+			// LEFT
+			w1 = new Vector2d(0, 0);
+			w2 = new Vector2d(0, CSDisplay.HEIGHT);
+
+			if(isCrossing(v1, v2, w1, w2)) { doDisplay = true; }
+		}
+		
+		if(!doDisplay) {
+			// RIGHT
+			w1 = new Vector2d(CSDisplay.WIDTH, 0);
+			w2 = new Vector2d(CSDisplay.WIDTH, CSDisplay.HEIGHT);
+
+			if(isCrossing(v1, v2, w1, w2)) { doDisplay = true; }
 		}
 		
 		if(doDisplay) {

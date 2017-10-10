@@ -45,6 +45,9 @@ public class Vector2d {
 	public double det(Vector2d w) {
 		return (this.x * w.Y() - this.y * w.X());
 	}
+	public double dotProduct(Vector2d v) {
+		return Math.acos((v.X()*this.x+v.Y()*this.y)/(this.length()*v.length()));
+	}
 	public boolean inRange(int minX, int maxX, int minY, int maxY) {
 		return (this.x >= minX && this.x <= maxX && y >= minY && y <= maxY);
 	}

@@ -3,16 +3,16 @@ package windowManager;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.Image;
-import java.awt.geom.RoundRectangle2D;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.util.ArrayList;
 
 import javax.imageio.ImageIO;
 import javax.swing.JFileChooser;
 
-import roadGraph.Vector2d;
+import roadGraph.*;
 
 public class ModeButton {
 	private int POS_X, POS_Y, WIDTH = 50, HEIGHT = 50;
@@ -41,12 +41,15 @@ public class ModeButton {
 	public void attemptToClick(Vector2d mV) {
 		if(mV.inRange(POS_X, POS_X+WIDTH, POS_Y, POS_Y+HEIGHT)) {
 			JFileChooser fileChooser;
+			ArrayList<Bend> bends;
+			ArrayList<Road> roads;
+			ArrayList<Text> texts;
 			switch (MODE) {
-			case -1:
+			case -1: // Edit Button
 				CSControl.EDIT_MODE = CSControl.EDIT_MODE ? false : true;
 				this.innerColor = CSControl.EDIT_MODE ? selectedColor : idleColor;
 				break;
-			case -2:
+			case -2: // Save Button
 				fileChooser = new JFileChooser();
 				fileChooser.setCurrentDirectory(new File("states\\"));
 				if (fileChooser.showSaveDialog(null) == JFileChooser.APPROVE_OPTION) {
@@ -61,10 +64,13 @@ public class ModeButton {
 					}
 				}
 				break;
-			case -3:
+			case -3: // Load Button
+				bends = CSDisplay.points;
+				roads = CSDisplay.lines;
+				texts = CSDisplay.textObjects;
+				
 				fileChooser = new JFileChooser();
 				fileChooser.setCurrentDirectory(new File("states\\"));
-				CSDisplay.refreshDisplay();
 				if (fileChooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
 					File file = fileChooser.getSelectedFile();
 					
@@ -74,9 +80,38 @@ public class ModeButton {
 						e.printStackTrace();
 					}
 				}
+				
+				CSControl.saveLastState(bends, roads, texts);
+				break;
+			case -4: // Add Background Image Button
+				if(!CSDisplay.displayBackground) {
+					this.innerColor = selectedColor;
+					
+					fileChooser = new JFileChooser();
+					fileChooser.setCurrentDirectory(new File("img\\background\\"));
+					if (fileChooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
+						File file = fileChooser.getSelectedFile();
+						
+						CSDisplay.loadBackground(file.getAbsolutePath());
+						CSDisplay.displayBackground = true;
+					}
+				} else {
+					this.innerColor = idleColor;
+					CSDisplay.displayBackground = false;
+				}
+				break;
+			case -5: // New State
+				bends = CSDisplay.points;
+				roads = CSDisplay.lines;
+				texts = CSDisplay.textObjects;
+				
+				CSControl.saveLastState(bends, roads, texts);
+				
+				CSDisplay.resetState();
 				break;
 			default:
-				CSDisplay.MODE = MODE;
+				if (this.MODE == 7) { CSDisplay.enterText = true; }
+				CSDisplay.MODE = this.MODE;
 				CSControl.MODE = this.MODE;
 				break;
 			}
@@ -90,7 +125,7 @@ public class ModeButton {
 	public void tick() {
 		if(CSControl.MODE == this.MODE && innerColor == idleColor) {
 			this.innerColor = selectedColor;
-		} else if(CSControl.MODE != this.MODE && innerColor != idleColor && this.MODE != -1) {
+		} else if(CSControl.MODE != this.MODE && innerColor != idleColor && this.MODE != -1 && this.MODE != -4) {
 			this.innerColor = idleColor;
 		}
 		

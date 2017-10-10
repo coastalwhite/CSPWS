@@ -1,11 +1,18 @@
 package windowManager;
 
 import java.awt.Color;
+import java.awt.Font;
 import java.awt.Graphics2D;
+import java.awt.Image;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
 import java.awt.geom.AffineTransform;
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
+
+import javax.imageio.ImageIO;
+import javax.swing.JOptionPane;
 
 import graphCore.Line;
 import graphCore.Point;
@@ -23,6 +30,14 @@ public class CSDisplay {
 	private static double displayZoom;
 	private static boolean displayChanged;
 	
+	public static boolean displayBackground;
+	private static String backgroundPath = "";
+	
+	public static boolean enterText = false;
+	private String textInput;
+	private int textInputWidth;
+	private boolean enteredText = false;
+	
 	private static Bend SELECTED_POINT = null;
 	private static Vector2d[] point_vectors = new Vector2d [2];
 	public static int MODE = 0;
@@ -33,8 +48,9 @@ public class CSDisplay {
 	
 	public static Color borderColor, bgColor;
 	
-	public static ArrayList<Bend> points = new ArrayList<Bend>();
-	public static ArrayList<Road> lines = new ArrayList<Road>();
+	public static ArrayList<Bend> points;
+	public static ArrayList<Road> lines;
+	public static ArrayList<Text> textObjects;
 	
 	public CSDisplay() {
 		WIDTH = 1000;
@@ -55,10 +71,20 @@ public class CSDisplay {
 
 		borderColor = new Color(150,150,150);
 		bgColor     = new Color(255,255,255);
+		
+		resetState();
 	}
 	
 	public static void refreshDisplay() {
 		displayChanged = true;
+	}
+	public static void loadBackground(String path) {
+		backgroundPath = path;
+	}
+	public static void resetState() {
+		points = new ArrayList<Bend>();
+		lines = new ArrayList<Road>();
+		textObjects = new ArrayList<Text>();
 	}
 	
 	public static Vector2d linTrans(Vector2d v) {
@@ -190,6 +216,39 @@ public class CSDisplay {
 					SELECTED_POINT = tb;
 				}
 				break;
+				
+			case 7:
+				if(enteredText) {
+					Vector2d middleVector = point_vectors[0].sumVector(new Vector2d(textInputWidth, 0).getTransformRS(displayZoom));
+					
+					Vector2d v1 = middleVector.difVector(point_vectors[0]);
+					Vector2d v2 = middleVector.difVector(mouseV);
+					
+					double angle = v1.dotProduct(v2);
+					
+					angle *= -1;
+					if(v1.Y()-v2.Y() <= 0) {
+						angle = Math.PI*2 - angle;
+					}
+					
+					textObjects.add(new Text(point_vectors[0].X(), point_vectors[0].Y(), angle, textInput));
+					
+					CSDisplay.refreshDisplay();
+					CSDisplay.MODE = 0;
+					CSControl.MODE = 0;
+					
+					textInput = null;
+				} else {
+					if (mouseV.inRange(POS_X, POS_X+WIDTH, POS_Y, POS_Y+HEIGHT)) {
+						point_vectors[0] = mouseV;
+						point_vectors[1] = null;
+						
+						CSControl.refreshDisplay();
+						
+						enteredText = true;
+					}
+				}
+				break;
 			}
 		}
 	}
@@ -213,6 +272,16 @@ public class CSDisplay {
 			point_vectors[1] = v2;
 			
 			displayChanged = true;
+		}
+		if(textInput != null) {
+			Vector2d mouseV = new Vector2d(e.getX(), e.getY()).getTransformRS(displayZoom).sumVector(displayPosition);
+			
+			point_vectors[1] = mouseV;
+			if (mouseV.inRange(POS_X, POS_X+WIDTH, POS_Y, POS_Y+HEIGHT)) {
+				displayChanged = true;
+			} else {
+				CSControl.refreshDisplay();
+			}
 		}
 	}
 	public void mouseReleased() {
@@ -241,10 +310,21 @@ public class CSDisplay {
 	}
 	
 	public void tick() { // LOOP FUNCTION
-		
 	}
 	
 	public void draw(Graphics2D g2d) { // RENDER FUNCTION
+		if (enterText) {
+			enterText = false;
+			textInput = JOptionPane.showInputDialog(this 
+					 ,"Enter text:");
+			
+			if (textInput == "") {
+				MODE = 0;
+				this.textInput = null;
+			} else {
+				this.textInputWidth = g2d.getFontMetrics().stringWidth(textInput);
+			}
+		}
 		if (displayChanged) {
 			g2d.clearRect(POS_X, POS_Y, WIDTH, HEIGHT);
 			
@@ -254,23 +334,53 @@ public class CSDisplay {
 			g2d.setColor(bgColor);
 			g2d.fillRect(POS_X+1, POS_Y+1, WIDTH-2, HEIGHT-2);
 			
-			/*Image img = null;
-			try {
-				img = ImageIO.read(new File("img\\background\\BACKGROUND.png"));
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-			Vector2d imgDim = new Vector2d(WIDTH,HEIGHT).getTransformRS(displayZoom);
-			g2d.drawImage(img,0,0,WIDTH,HEIGHT,displayPosition.INTX(),displayPosition.INTY(),displayPosition.INTX()+imgDim.INTX(),displayPosition.INTY()+imgDim.INTY(),null);*/
+			Font currentFont = g2d.getFont();
+			Font newFont = currentFont.deriveFont((float) (currentFont.getSize() * Math.pow(displayZoom,-1)));
+			g2d.setFont(newFont);
 			
+			if (displayBackground) {
+				Image img = null;
+				try {
+					img = ImageIO.read(new File(backgroundPath));
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+				Vector2d imgDim = new Vector2d(WIDTH,HEIGHT).getTransformRS(displayZoom);
+				g2d.drawImage(img,0,0,WIDTH,HEIGHT,displayPosition.INTX(),displayPosition.INTY(),displayPosition.INTX()+imgDim.INTX(),displayPosition.INTY()+imgDim.INTY(),null);
+			}
+				
 			for(Road l : lines){
-				l.attemptToRender(g2d, displayZoom, displayChanged);
+				l.attemptToRender(g2d, displayZoom);
 			}
 			
 			for(Bend p : points){
-				p.attemptToRender(g2d, displayZoom, displayChanged);
+				p.attemptToRender(g2d, displayZoom);
+			}
+			for(Text t : textObjects) {
+				t.attemptToRender(g2d, g2d.getFontMetrics().stringWidth(t.text));
 			}
 			
+			if(textInput != null && point_vectors[1] != null) {
+				if (enteredText) {
+					textInputWidth = g2d.getFontMetrics().stringWidth(textInput);
+					
+					Vector2d middleVector = point_vectors[0].sumVector(new Vector2d(textInputWidth, 0).getTransformRS(displayZoom));
+					
+					Vector2d v1 = middleVector.difVector(point_vectors[0]);
+					Vector2d v2 = middleVector.difVector(point_vectors[1]);
+					
+					double angle = v1.dotProduct(v2);
+					
+					angle *= -1;
+					if(v1.Y()-v2.Y() <= 0) {
+						angle = Math.PI*2 - angle;
+					}
+					
+					new Text(point_vectors[0].X(), point_vectors[0].Y(), angle, textInput).attemptToRender(g2d, textInputWidth);
+				} else {
+					new Text(point_vectors[1].X(), point_vectors[1].Y(), 0, textInput).attemptToRender(g2d, g2d.getFontMetrics().stringWidth(textInput));
+				}
+			}
 			if(SELECTED_POINT != null && point_vectors[0] != null) {
 				Vector2d v1 = linTrans(point_vectors[0]);
 				Vector2d v2 = linTrans(point_vectors[1]);
