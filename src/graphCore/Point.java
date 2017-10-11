@@ -9,7 +9,7 @@ public class Point {
 	
 	protected Coord pos;
 	public static int radius = 2;
-	public static Color color = Color.BLACK;
+	public Color color = Color.BLACK;
 	
 	public Point(double iX, double iY){
 		//INIT

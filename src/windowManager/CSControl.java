@@ -36,7 +36,7 @@ public class CSControl {
 		HEIGHT = ScreenGraphics.FRAME_HEIGHT;
 		
 		try {
-			CSControl.loadState("states\\state1.txt");
+			CSControl.loadState("states\\Rijksweg.txt");
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -116,8 +116,21 @@ public class CSControl {
 			prop = split[i].split(",");
 			
 			switch(prop[1]) {
-			case "Point": // <#ID,Point,Type,#X,#Y> 
-				bends.add(new Bend(Double.parseDouble(prop[3]), Double.parseDouble(prop[4])));
+			case "Point": // <#ID,Point,Type,#X,#Y>
+				switch (prop[2]) {
+				case "Type1":
+					bends.add(new Bend(Double.parseDouble(prop[3]), Double.parseDouble(prop[4])));
+					break;
+				case "Type2":
+					bends.add(new TrafficLight(Double.parseDouble(prop[3]), Double.parseDouble(prop[4])));
+					break;
+				case "Type3":
+					bends.add(new CrossoverPoint(Double.parseDouble(prop[3]), Double.parseDouble(prop[4])));
+					break;
+				default:
+					bends.add(new Bend(Double.parseDouble(prop[3]), Double.parseDouble(prop[4])));
+					break;
+				}
 				break;
 			case "Line": // <#ID,Line,Type,#PointID1,#PointID2>
 				switch (prop[2]) {
@@ -126,6 +139,9 @@ public class CSControl {
 					break;
 				case "Type2":
 					roads.add(new BicycleRoad(bends.get(Integer.parseInt(prop[3])-1), bends.get(Integer.parseInt(prop[4])-1)));
+					break;
+				case "Type3":
+					roads.add(new CrossoverRoad(bends.get(Integer.parseInt(prop[3])-1), bends.get(Integer.parseInt(prop[4])-1)));
 					break;
 				default:
 					roads.add(new Road(bends.get(Integer.parseInt(prop[3])-1), bends.get(Integer.parseInt(prop[4])-1)));
@@ -154,7 +170,18 @@ public class CSControl {
 		for(Bend b : CSDisplay.points) {
 			i++;
 			coords.add(b.pos());
-			writer.println("<" + Integer.toString(i) + ",Point,Type1," + Double.toString(b.pos().X()) + "," + Double.toString(b.pos().Y()) + ">");
+			
+			String type = "Type0";
+			
+			if(b.getClass() == Bend.class) {
+				type = "Type1";
+			} else if(b.getClass() == TrafficLight.class) {
+				type = "Type2";
+			} else if(b.getClass() == CrossoverPoint.class) {
+				type = "Type3";
+			}
+			
+			writer.println("<" + Integer.toString(i) + ",Point," + type + "," + Double.toString(b.pos().X()) + "," + Double.toString(b.pos().Y()) + ">");
 		}
 		
 		int b1, b2;
@@ -170,6 +197,8 @@ public class CSControl {
 				type = "Type1";
 			} else if(r.getClass() == BicycleRoad.class) {
 				type = "Type2";
+			} else if(r.getClass() == CrossoverRoad.class) {
+				type = "Type3";
 			}
 			
 			writer.println("<" + Integer.toString(i) + ",Line," + type + "," + Integer.toString(b1+1) + "," + Integer.toString(b2+1) + ">");

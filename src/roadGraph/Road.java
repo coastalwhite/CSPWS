@@ -61,7 +61,30 @@ public class Road extends Line {
 		
 		return (inRange(t,-1.0f,0.0f) && inRange(u,-1.0f,0.0f));
 	}
-
+	public Vector2d getCrosspoint(Road road) {
+		// Check if v1->v2 crosses w1->w2
+		Vector2d p, q, r, s;
+		double t, u;
+		
+		p = new Vector2d(road.b1().pos().X(), road.b1.pos().Y());
+		q = new Vector2d(b1.pos().X(), b1.pos().Y());
+		r = new Vector2d(road.b2().pos().X(), road.b2.pos().Y()).difVector(p);
+		s = new Vector2d(b2.pos().X(), b2.pos().Y()).difVector(q);
+		
+		if(r.det(s) == 0) {
+			return null;
+		}
+		
+		t = q.difVector(p).det(s) / r.det(s);
+		u = p.difVector(q).det(r) / s.det(r);
+		
+		if(inRange(t,0.0f,1.0f) && inRange(u,0.0f,1.0f)) {
+			return new Vector2d(t, u);
+		}
+		
+		return null;
+	}
+	
 	public void attemptToRender(Graphics2D g2d, double displayZoom) {
 		Vector2d v1, v2;
 		

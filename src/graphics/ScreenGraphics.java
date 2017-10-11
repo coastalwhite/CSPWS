@@ -91,7 +91,7 @@ public class ScreenGraphics extends JPanel implements Runnable, MouseListener, M
 
 	@Override
 	public void mouseReleased(MouseEvent e) {
-		csdisplay.mouseReleased();
+		csdisplay.mouseReleased(e);
 	}
 
 	@Override

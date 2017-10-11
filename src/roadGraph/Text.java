@@ -13,6 +13,8 @@ public class Text {
 	public static Color color = Color.BLACK;
 	public String text = "";
 	
+	private double defaultLength;
+	
 	public Text(double iX, double iY, double iAngle, String t) {
 		this.POS_X = iX;
 		this.POS_Y = iY;
@@ -24,15 +26,20 @@ public class Text {
 	public double X() { return POS_X; }
 	public double Y() { return POS_Y; }
 	public double Angle() { return angle; }
+	public double defaultLength() { return defaultLength; } 
 	
-	public void attemptToRender(Graphics2D g2d, int textWidth) {
+	public void attemptToRender(Graphics2D g2d, double displayZoom) {
+		if(defaultLength == 0) {
+			defaultLength = new Vector2d(g2d.getFontMetrics().stringWidth(text),0.0f).getTransformRS(displayZoom).X();
+		}
+		
 		Vector2d posV = CSDisplay.linTrans(new Vector2d(POS_X, POS_Y));
 		
 		// Rendering
 		AffineTransform t = g2d.getTransform(); // Saving current rotation state
 		g2d.rotate(
 				   angle,
-				   posV.X()+textWidth,
+				   posV.X()+g2d.getFontMetrics().stringWidth(text),
 				   posV.Y()
 				  ); // Rotating next render
 		

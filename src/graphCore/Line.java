@@ -9,7 +9,7 @@ import roadGraph.Vector2d;
 public class Line {
 	protected Point p1, p2;
 	protected double weight;
-	public static int lineWidth = 2;
+	public static int lineWidth = 4;
 	public Color color = Color.GRAY;
 	
 	public Line(Point ip1, Point ip2){
