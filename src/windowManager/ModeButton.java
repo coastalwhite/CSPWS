@@ -11,6 +11,7 @@ import java.util.ArrayList;
 
 import javax.imageio.ImageIO;
 import javax.swing.JFileChooser;
+import javax.swing.JOptionPane;
 
 import roadGraph.*;
 
@@ -26,6 +27,8 @@ public class ModeButton {
 	public static Color selectedColor = new Color(100,255,100);
 	public static Color idleColor = Color.WHITE;
 	
+	private static boolean buttonsDisabled = false;
+	
 	private String imagePath;
 	
 	public ModeButton(int iX, int iY, int iM, String iPath) {
@@ -40,14 +43,36 @@ public class ModeButton {
 	
 	public void attemptToClick(Vector2d mV) {
 		if(mV.inRange(POS_X, POS_X+WIDTH, POS_Y, POS_Y+HEIGHT)) {
+			boolean doClick = true;
+			
 			JFileChooser fileChooser;
 			ArrayList<Bend> bends;
 			ArrayList<Road> roads;
 			ArrayList<Text> texts;
 			switch (MODE) {
+			case 8:
+				CSDisplay.MODE = this.MODE;
+				CSControl.MODE = this.MODE;
+				CSControl.EDIT_MODE = false;
+				break;
+			case 7:
+				String textInput = JOptionPane.showInputDialog(this 
+						 ,"Enter text...");
+				
+				if (textInput != "" && textInput != "Enter text...") {
+					CSDisplay.textInput = textInput;
+					CSDisplay.MODE = MODE;
+					CSControl.MODE = MODE;
+				}
+				break;
 			case -1: // Edit Button
-				CSControl.EDIT_MODE = CSControl.EDIT_MODE ? false : true;
-				this.innerColor = CSControl.EDIT_MODE ? selectedColor : idleColor;
+				if(!buttonsDisabled) {
+					CSControl.EDIT_MODE = CSControl.EDIT_MODE ? false : true;
+					CSControl.MODE = -1;
+					this.innerColor = CSControl.EDIT_MODE ? selectedColor : idleColor;
+				} else {
+					doClick = false;
+				}
 				break;
 			case -2: // Save Button
 				fileChooser = new JFileChooser();
@@ -109,24 +134,47 @@ public class ModeButton {
 				
 				CSDisplay.resetState();
 				break;
+			case -6: // Start / Stop playing simulation
+				if(CSDisplay.PLAY_SIMULATION) {
+					this.imagePath = "Start.png";
+					CSDisplay.PLAY_SIMULATION = false;
+					buttonsDisabled = false;
+				} else {
+					for(Road r : CSDisplay.lines) {
+						r.getNextRoad();
+					}
+					buttonsDisabled = true;
+					CSControl.EDIT_MODE = false;
+					this.imagePath = "Stop.png";
+					CSDisplay.PLAY_SIMULATION = true;
+				}
 			default:
-				if (this.MODE == 7) { CSDisplay.enterText = true; }
 				CSDisplay.MODE = this.MODE;
 				CSControl.MODE = this.MODE;
 				break;
 			}
-			clicked = true;
-			borderWidth = 6;
-			
-			CSDisplay.refreshDisplay();
+			if(doClick) {
+				clicked = true;
+				borderWidth = 6;
+				
+				CSDisplay.refreshDisplay();
+			}
 		}
 	}
 	
 	public void tick() {
-		if(CSControl.MODE == this.MODE && innerColor == idleColor) {
+		if(CSControl.MODE == this.MODE && innerColor == idleColor && CSControl.MODE >= 0) {
 			this.innerColor = selectedColor;
 		} else if(CSControl.MODE != this.MODE && innerColor != idleColor && this.MODE != -1 && this.MODE != -4) {
 			this.innerColor = idleColor;
+		}
+		
+		if (MODE == -1) {
+			if (buttonsDisabled && (innerColor == idleColor || innerColor == selectedColor)) {
+				innerColor = Color.LIGHT_GRAY;
+			} else if((!buttonsDisabled && innerColor == Color.LIGHT_GRAY) || (!CSControl.EDIT_MODE && innerColor == selectedColor)) {
+				innerColor = Color.WHITE;
+			}
 		}
 		
 		if(clicked) {

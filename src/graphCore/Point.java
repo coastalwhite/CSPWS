@@ -8,7 +8,7 @@ import roadGraph.Vector2d;
 public class Point {
 	
 	protected Coord pos;
-	public static int radius = 2;
+	public static int radius = 3;
 	public Color color = Color.BLACK;
 	
 	public Point(double iX, double iY){

@@ -8,6 +8,9 @@ import windowManager.CSDisplay;
 
 public class Bend extends Point {
 	private boolean doDisplay = false;
+	
+	public double carsPerSecond = 0.0;
+	public double bikesPerSecond = 0.0;
 
 	public Bend(double iX, double iY) {
 		super(iX, iY);

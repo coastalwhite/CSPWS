@@ -2,14 +2,16 @@ package graphCore;
 
 import java.awt.Color;
 import java.awt.Graphics2D;
+import java.awt.Polygon;
 import java.awt.geom.AffineTransform;
 
 import roadGraph.Vector2d;
+import windowManager.CSDisplay;
 
 public class Line {
 	protected Point p1, p2;
 	protected double weight;
-	public static int lineWidth = 4;
+	public static int lineWidth = 3;
 	public Color color = Color.GRAY;
 	
 	public Line(Point ip1, Point ip2){
@@ -31,39 +33,40 @@ public class Line {
 	}
 	
 	public void drawLine(Graphics2D g2d, Vector2d v1, Vector2d v2, double displayZoom) {
-		// Calculations
-		int yOffset = (int) Math.round(Math.ceil(lineWidth / 2) * Math.pow(displayZoom, -1));
-		Vector2d difVector = v1.difVector(v2); 
+		/*
+		 * v(vect) = [  x   y  ]
+		 * c = y / x
+		 * n(vect) = [ -y   x  ]
+		 * length(n) = sqrt ( (-y)^2 + x^2 ) = sqrt ( (x*c)^2 + x^2 ) = x * sqrt ( c^2 + 1 )
+		 * x = length(n) / sqrt ( c^2 + 1 )
+		 * 
+		 * n(vect) = [ ( -1 * length(n) * c / sqrt ( c^2 + 1 ) )     ( length(n) / sqrt ( c^2 + 1 ) ) ]
+		 */
 		
-		double distance = difVector.length();
 		
-		double dx = difVector.X();
-		double dy = difVector.Y();
+		Vector2d difVector = v1.difVector(v2);
 		
-		double angle = Math.atan(dy/dx);
+		double c = difVector.Y() / difVector.X();
+		Vector2d yOffset = new Vector2d( ( -1 * Math.pow(displayZoom, -1) * (lineWidth / 2) * c / Math.sqrt(c*c + 1) ), Math.pow(displayZoom, -1) * (lineWidth / 2) / Math.sqrt(c*c + 1));
 		
-		if(dx>=0){ // Check for 180 degree turns
-			angle += Math.PI;
+		Vector2d [] lineVectors = {
+									v1.difVector(yOffset),
+									v1.sumVector(yOffset),
+									v2.sumVector(yOffset),
+									v2.difVector(yOffset)
+								   };
+			
+		int [] xPoints = new int[4];
+		int [] yPoints = new int[4];
+		
+		int i = 0;
+		for(Vector2d v : lineVectors) {
+			xPoints[i] = v.INTX();
+			yPoints[i] = v.INTY();
+			i++;
 		}
-		
-		// Rendering
-		AffineTransform t = g2d.getTransform(); // Saving current rotation state
-		g2d.rotate(
-				   angle,
-				   v1.X(),
-				   v1.Y()
-				  ); // Rotating next render
-		
-		// Actual square rendering
 		g2d.setColor(color);
-		g2d.fillRect(
-						(int) Math.round(v1.X()),
-						(int) Math.round(v1.Y()) - yOffset,
-						(int) Math.round(distance),
-						(int) Math.round(lineWidth*Math.pow(displayZoom, -1))
-				    );
-	
-		g2d.setTransform(t); // Returning to old rotation state
+		g2d.fillPolygon(xPoints, yPoints, 4);
 	}
 	
 	

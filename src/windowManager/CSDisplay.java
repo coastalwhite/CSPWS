@@ -4,6 +4,7 @@ import java.awt.Color;
 import java.awt.Font;
 import java.awt.Graphics2D;
 import java.awt.Image;
+import java.awt.Rectangle;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
 import java.awt.geom.AffineTransform;
@@ -17,62 +18,65 @@ import javax.swing.JOptionPane;
 import graphCore.Line;
 import graphCore.Point;
 import roadGraph.*;
+import simulation.Car;
 
 public class CSDisplay {
-	public static int WIDTH,
-					  HEIGHT,
-					  POS_X,
-					  POS_Y;
 	
-	public static Vector2d zoomConstant;
+	// Window Settings
+	public static int WIDTH                     =                         1000,
+					  HEIGHT                    =                          900,
+					  POS_X                     =                            0,
+					  POS_Y                     =                            0;
 	
-	private static Vector2d displayPosition;
-	private static double displayZoom;
-	private static boolean displayChanged;
+	public static Color borderColor             =       new Color(150,150,150),
+						bgColor                 =       new Color(255,255,255);
 	
-	public static boolean displayBackground;
-	private static String backgroundPath = "";
 	
-	public static boolean enterText = false;
-	private String textInput;
+	// View Settings
+	private static Vector2d displayPosition     =    new Vector2d (0.0f, 0.0f);
+	private static double displayZoom           =                         1.0f;
+	private static Vector2d zoomConstant        = new Vector2d (100.0f, 90.0f);
+	private static boolean displayChanged       =                        false;
+	
+	// Editor Settings
+	public static int MODE                      =                            0;
+	
+	// 		Image Loading
+	public static boolean displayBackground     =                        false;
+	private static String backgroundPath        =                           "";
+	
+	//		Text Loading
+	public static String textInput				=						  null;
+	
+	//		Line adding
+	private static Bend SELECTED_POINT          =                         null;
+	private static Vector2d[] point_vectors     =             new Vector2d [2];
+	
+	// Content Vars
+	public static ArrayList<Bend> points        =        new ArrayList<Bend>();
+	public static ArrayList<Road> lines         =        new ArrayList<Road>();
+	public static ArrayList<Text> textObjects   =        new ArrayList<Text>();
+	
+	// Simulation Settings
+	public static boolean PLAY_SIMULATION       =                        false;
+	
+	// Non Static
+	private boolean clickedText = false;
 	private int textInputWidth;
-	private boolean enteredText = false;
 	
-	private static Bend SELECTED_POINT = null;
-	private static Vector2d[] point_vectors = new Vector2d [2];
-	public static int MODE = 0;
-	
-	private int CLICK_X, CLICK_Y;
-	
+	// 		Mouse Dragging
 	private boolean CLICK_DOWN;
-	
-	public static Color borderColor, bgColor;
-	
-	public static ArrayList<Bend> points;
-	public static ArrayList<Road> lines;
-	public static ArrayList<Text> textObjects;
+	private int CLICK_X,
+				CLICK_Y;
 	
 	public CSDisplay() {
-		WIDTH = 1000;
-		HEIGHT = 900;
-		POS_X = 0;
-		POS_Y = 0;
-
-		zoomConstant = new Vector2d (100,90);
-
-		displayPosition = new Vector2d(0.0f, 0.0f);
-		displayZoom = 1.0f;
-		displayChanged = false;
-
-		CLICK_DOWN = false;
+		this.CLICK_DOWN = false;
 		
-		CLICK_X = 0;
-		CLICK_Y = 0;
-
-		borderColor = new Color(150,150,150);
-		bgColor     = new Color(255,255,255);
+		this.CLICK_X = 0;
+		this.CLICK_Y = 0;
 		
-		resetState();
+		this.clickedText = false;
+		this.textInputWidth = 0;
 	}
 	
 	public static void refreshDisplay() {
@@ -85,6 +89,8 @@ public class CSDisplay {
 		points = new ArrayList<Bend>();
 		lines = new ArrayList<Road>();
 		textObjects = new ArrayList<Text>();
+		
+		refreshDisplay();
 	}
 	
 	public static Vector2d linTrans(Vector2d v) {
@@ -93,7 +99,7 @@ public class CSDisplay {
 	
 	public void moveScreen(int dx, int dy){
 		displayPosition = displayPosition.sumVector(new Vector2d(dx,dy).getTransformRS(displayZoom));
-		displayChanged = true;
+		refreshDisplay();
 	}
 	
 	public Object getObjectAtLocation(Vector2d v) {
@@ -108,6 +114,10 @@ public class CSDisplay {
 		
 		Vector2d p1v, p2v;
 		
+		/*
+		 * For later use
+		 * http://jsfiddle.net/PerroAZUL/zdaY8/1/
+		 */
 		for(Road r : lines) {
 			p1v = new Vector2d(r.p1().pos().X(), r.p1().pos().Y());
 			p2v = new Vector2d(r.p2().pos().X(), r.p2().pos().Y());
@@ -160,16 +170,16 @@ public class CSDisplay {
 	
 	private Bend getBendAtLocation(Vector2d mouseV) {
 		Bend tb = null;
-		Vector2d bv;
 		for(Bend b : points) {
-			bv = new Vector2d(b.pos().X(), b.pos().Y());
-			if(bv.difVector(mouseV).length() <= Point.radius*Math.pow(displayZoom, -1)) {
+			if(new Vector2d(b.pos().X(), b.pos().Y()).difVector(mouseV).length() <= Point.radius) {
 				tb = b;
 				continue;
 			}
 		}
 		return tb;
 	}
+	
+	// Click Actions
 	private void removeObjects(Vector2d mouseV) {
 		Object o = getObjectAtLocation(mouseV);
 		
@@ -188,33 +198,39 @@ public class CSDisplay {
 				textObjects.remove((Text) o); 
 			}
 			
-			displayChanged = true;
+			refreshDisplay();
 		}
 	}
 	private void addRoad(int type, Vector2d mouseV) {
 		Bend tb = getBendAtLocation(mouseV);
 		
 		if(SELECTED_POINT != null) {
+			
 			if(tb == null) {
 				tb = new Bend(mouseV.X(), mouseV.Y());
 				points.add(tb);
 			}
 			
-			switch (type) {
-			case 1:
-				lines.add(new CarRoad(tb,SELECTED_POINT));
-				break;
-			case 2:
-				lines.add(new BicycleRoad(tb,SELECTED_POINT));
-				break;
-			default:
-				lines.add(new Road(tb,SELECTED_POINT));
-				break;
+			if (!tb.equals(SELECTED_POINT)) {
+				
+				switch (type) {
+				case 1:
+					lines.add(new CarRoad(SELECTED_POINT,tb,1));
+					break;
+				case 2:
+					lines.add(new BicycleRoad(SELECTED_POINT,tb,1));
+					break;
+				default:
+					lines.add(new Road(SELECTED_POINT,tb,1));
+					break;
+				}
+				
 			}
+			
 			SELECTED_POINT = null;
 			point_vectors[0] = null;
 			point_vectors[1] = null;
-			displayChanged = true;
+			refreshDisplay();
 		} else {
 			SELECTED_POINT = tb;
 		}
@@ -232,7 +248,7 @@ public class CSDisplay {
 			ArrayList<Double> ts = new ArrayList<Double>();
 			ArrayList<Road> roads = new ArrayList<Road>();
 			
-			CrossoverRoad cr = new CrossoverRoad(tb,SELECTED_POINT);
+			CrossoverRoad cr = new CrossoverRoad(tb,SELECTED_POINT,1);
 			
 			for(Road r : lines) {
 				bv = r.getCrosspoint(cr);
@@ -278,34 +294,34 @@ public class CSDisplay {
 				lines.remove(lines.indexOf(smallestRoad));
 				
 				if(CarRoad.class == smallestRoad.getClass()) {
-					lines.add(new CarRoad(smallestRoad.b1(),stBend));
-					lines.add(new CarRoad(smallestRoad.b2(),stBend));
+					lines.add(new CarRoad(smallestRoad.b1(),stBend,1));
+					lines.add(new CarRoad(smallestRoad.b2(),stBend,1));
 				} else if(BicycleRoad.class == smallestRoad.getClass()) {
-					lines.add(new BicycleRoad(smallestRoad.b1(),stBend));
-					lines.add(new BicycleRoad(smallestRoad.b2(),stBend));
+					lines.add(new BicycleRoad(smallestRoad.b1(),stBend,1));
+					lines.add(new BicycleRoad(smallestRoad.b2(),stBend,1));
 				} else if(CrossoverRoad.class == smallestRoad.getClass()) {
-					lines.add(new CrossoverRoad(smallestRoad.b1(),stBend));
-					lines.add(new CrossoverRoad(smallestRoad.b2(),stBend));
+					lines.add(new CrossoverRoad(smallestRoad.b1(),stBend,1));
+					lines.add(new CrossoverRoad(smallestRoad.b2(),stBend,1));
 				} else {
-					lines.add(new Road(smallestRoad.b1(),stBend));
-					lines.add(new Road(smallestRoad.b2(),stBend));
+					lines.add(new Road(smallestRoad.b1(),stBend,1));
+					lines.add(new Road(smallestRoad.b2(),stBend,1));
 				}
 					
 				
 				points.add(stBend);
-				lines.add(new CrossoverRoad(tb,stBend));
+				lines.add(new CrossoverRoad(tb,stBend,1));
 				tb = stBend;
 				
 				startJ++;
 			}
 
-			lines.add(new CrossoverRoad(tb,SELECTED_POINT));
+			lines.add(new CrossoverRoad(tb,SELECTED_POINT,1));
 			
 			SELECTED_POINT = null;
 			point_vectors[0] = null;
 			point_vectors[1] = null;
 			
-			displayChanged = true;
+			refreshDisplay();
 		} else {
 			if(tb == null) {
 				tb = new CrossoverPoint(mouseV.X(), mouseV.Y());
@@ -315,14 +331,15 @@ public class CSDisplay {
 			SELECTED_POINT = tb;
 		}
 		
-		displayChanged = true;
+		refreshDisplay();
 	}
 	private void addText(Vector2d mouseV) {
-		if(enteredText) {
+		if(clickedText) {
+			System.out.println("hi!");
 			Vector2d middleVector = point_vectors[0].sumVector(new Vector2d(textInputWidth, 0).getTransformRS(displayZoom));
 			
-			Vector2d v1 = middleVector.difVector(point_vectors[0]);
-			Vector2d v2 = middleVector.difVector(mouseV);
+			Vector2d v1 = new Vector2d(textInputWidth, 0).getTransformRS(displayZoom);
+			Vector2d v2 = middleVector.difVector(mouseV.getTransformRS(displayZoom).sumVector(displayPosition));
 			
 			double angle = v1.dotProduct(v2);
 			
@@ -333,19 +350,22 @@ public class CSDisplay {
 			
 			textObjects.add(new Text(point_vectors[0].X(), point_vectors[0].Y(), angle, textInput));
 			
-			CSDisplay.refreshDisplay();
+			clickedText = false;
+			
+			refreshDisplay();
 			CSDisplay.MODE = 0;
 			CSControl.MODE = 0;
 			
 			textInput = null;
 		} else {
+			System.out.println("hi!1");
 			if (mouseV.inRange(POS_X, POS_X+WIDTH, POS_Y, POS_Y+HEIGHT)) {
-				point_vectors[0] = mouseV;
+				point_vectors[0] = mouseV.getTransformRS(displayZoom).sumVector(displayPosition);
 				point_vectors[1] = null;
 				
-				CSControl.refreshDisplay();
+				clickedText = true;
 				
-				enteredText = true;
+				CSDisplay.refreshDisplay();
 			}
 		}
 	}
@@ -361,7 +381,7 @@ public class CSDisplay {
 			ArrayList<Double> ts = new ArrayList<Double>();
 			ArrayList<Road> roads = new ArrayList<Road>();
 			
-			Road tempR = new Road(tb,SELECTED_POINT);
+			Road tempR = new Road(tb,SELECTED_POINT,1);
 			
 			for(Road r : lines) {
 				bv = r.getCrosspoint(tempR);
@@ -407,17 +427,17 @@ public class CSDisplay {
 				lines.remove(lines.indexOf(smallestRoad));
 				
 				if(CarRoad.class == smallestRoad.getClass()) {
-					lines.add(new CarRoad(smallestRoad.b1(),stBend));
-					lines.add(new CarRoad(smallestRoad.b2(),stBend));
+					lines.add(new CarRoad(smallestRoad.b1(),stBend,1));
+					lines.add(new CarRoad(smallestRoad.b2(),stBend,1));
 				} else if(BicycleRoad.class == smallestRoad.getClass()) {
-					lines.add(new BicycleRoad(smallestRoad.b1(),stBend));
-					lines.add(new BicycleRoad(smallestRoad.b2(),stBend));
+					lines.add(new BicycleRoad(smallestRoad.b1(),stBend,1));
+					lines.add(new BicycleRoad(smallestRoad.b2(),stBend,1));
 				} else if(CrossoverRoad.class == smallestRoad.getClass()) {
-					lines.add(new CrossoverRoad(smallestRoad.b1(),stBend));
-					lines.add(new CrossoverRoad(smallestRoad.b2(),stBend));
+					lines.add(new CrossoverRoad(smallestRoad.b1(),stBend,1));
+					lines.add(new CrossoverRoad(smallestRoad.b2(),stBend,1));
 				} else {
-					lines.add(new Road(smallestRoad.b1(),stBend));
-					lines.add(new Road(smallestRoad.b2(),stBend));
+					lines.add(new Road(smallestRoad.b1(),stBend,1));
+					lines.add(new Road(smallestRoad.b2(),stBend,1));
 				}
 					
 				
@@ -431,7 +451,7 @@ public class CSDisplay {
 			point_vectors[0] = null;
 			point_vectors[1] = null;
 			
-			displayChanged = true;
+			refreshDisplay();
 		} else {
 			if(tb == null) {
 				tb = new Bend(mouseV.X(), mouseV.Y());
@@ -440,7 +460,13 @@ public class CSDisplay {
 			SELECTED_POINT = tb;
 		}
 		
-		displayChanged = true;
+		refreshDisplay();
+	}
+	private void showObjectInfo(Vector2d mouseV) {
+		Object o = getObjectAtLocation(mouseV);
+		if(o != null) {
+			CSControl.showObjectInfo(o);
+		}
 	}
 	
 	// Event Handlers
@@ -449,7 +475,7 @@ public class CSDisplay {
 		this.CLICK_Y = e.getY();
 		
 		Vector2d mouseV = new Vector2d(CLICK_X,CLICK_Y).getTransformRS(displayZoom).sumVector(displayPosition);
-		if(e.getButton() == 1 && mouseV.inRange(POS_X, POS_X+WIDTH, POS_Y, POS_Y+HEIGHT)) {
+		if(e.getButton() == 1 && new Vector2d(CLICK_X, CLICK_Y).inRange(POS_X, POS_X+WIDTH, POS_Y, POS_Y+HEIGHT)) {
 			CLICK_DOWN = true;
 		}
 		
@@ -463,7 +489,7 @@ public class CSDisplay {
 			case 2: // Add Point
 				points.add(new Bend(mouseV.X(), mouseV.Y()));
 				
-				displayChanged = true;
+				refreshDisplay();
 				break;
 			case 3: // Add Car Road
 				this.addRoad(1, mouseV);
@@ -477,46 +503,50 @@ public class CSDisplay {
 			case 6: // Add Crossover
 				this.addCrossover(mouseV);
 				break;
-			case 7:
-				this.addText(mouseV);
+			case 7: // Add Text
+				this.addText(new Vector2d(CLICK_X, CLICK_Y));
+				break;
+			case 8: // Show Object Info
+				this.showObjectInfo(mouseV);
 				break;
 			}
 		}
 	}
 	public void mouseDrag(MouseEvent e) {
+		// General mouse around
 		if(CLICK_DOWN && !displayBackground) {
-			Vector2d dVector = new Vector2d(e.getX()-CLICK_X, e.getY()-CLICK_Y);
-			displayPosition = displayPosition.difVector(dVector.getTransformRS(displayZoom));
+			displayPosition = displayPosition.difVector(new Vector2d(e.getX()-CLICK_X, e.getY()-CLICK_Y).getTransformRS(displayZoom));
 		
 			this.CLICK_X = e.getX();
 			this.CLICK_Y = e.getY();
 		}
 		
-		displayChanged = true;
+		refreshDisplay();
 	}
 	public void mouseMove(MouseEvent e) {
+		// Line preview
 		if(SELECTED_POINT != null) {
-			Vector2d v1 = new Vector2d(SELECTED_POINT.pos().X(), SELECTED_POINT.pos().Y());
 			Vector2d v2 = new Vector2d(e.getX(), e.getY()).getTransformRS(displayZoom).sumVector(displayPosition);
 			
-			point_vectors[0] = v1;
 			point_vectors[1] = v2;
 			
-			displayChanged = true;
+			refreshDisplay();
 		}
+		
+		// Text Rotation
 		if(textInput != null) {
-			Vector2d mouseV = new Vector2d(e.getX(), e.getY()).getTransformRS(displayZoom).sumVector(displayPosition);
+			Vector2d mouseV = new Vector2d(e.getX(), e.getY());
 			
-			point_vectors[1] = mouseV;
 			if (mouseV.inRange(POS_X, POS_X+WIDTH, POS_Y, POS_Y+HEIGHT)) {
-				displayChanged = true;
-			} else {
-				CSControl.refreshDisplay();
+				point_vectors[clickedText ? 1 : 0] = mouseV.getTransformRS(displayZoom).sumVector(displayPosition);
+				refreshDisplay();
 			}
 		}
 	}
 	public void mouseReleased(MouseEvent e) {
 		CLICK_DOWN = false;
+		
+		// Display Optimize for Image Loading
 		if(displayBackground) {
 			Vector2d dVector = new Vector2d(e.getX()-CLICK_X, e.getY()-CLICK_Y);
 			displayPosition = displayPosition.difVector(dVector.getTransformRS(displayZoom));
@@ -524,47 +554,49 @@ public class CSDisplay {
 			this.CLICK_X = e.getX();
 			this.CLICK_Y = e.getY();
 			
-			displayChanged = true;
+			refreshDisplay();
 		}
 	}
 	public void zoom(MouseWheelEvent e){
-		int wr = e.getWheelRotation();
+		int c = e.getWheelRotation();
+		double newZoom = displayZoom + zoomConstant.X() * c / WIDTH;
 		
-		if(((WIDTH*displayZoom)+(zoomConstant.X()*wr))/WIDTH > 0.1 && ((WIDTH*displayZoom)+(zoomConstant.X()*wr))/WIDTH < 4.0) {
-			int mouseX = e.getX();
-			int mouseY = e.getY();
+		if(newZoom > 0.1 && newZoom < 4.0) {
+			/*
+			 * Mx = Mouse X in Pixels
+			 * My = Mouse Y in Pixels
+			 * WIDTH = Display Width in Pixels
+			 * HEIGHT = Display Height in Pixels
+			 * Px = X position of the display
+			 * Py = Y position of the display
+			 * Z = Factor of zoom in display
+			 * WZ = Amount of X zoom in Pixels
+			 * HZ = Amount of Y zoom in Pixels
+			 * C = -1 for zoom out / 1 for zoom in
+			 * 
+			 * Mouse Position (MP) : Vector ( Mx * Z + Px , My * Z + Py )  --  Click onto objects if possible
+			 * Relative Position (R) : Vector ( Mx / WIDTH , My / HEIGHT )
+			 * New Mouse Position (NM) : Vector ( Rx * ( ( WIDTH * Z ) + ( WZ * C ) ) , Ry * ( ( HEIGHT * Z ) + ( HZ * C ) ) )
+			 * New display position : MP - NM = P - ( ( M * F * C ) / D )
+			 */
 			
-			Vector2d mPos = new Vector2d(mouseX, mouseY).getTransformRS(displayZoom).sumVector(displayPosition);
-			
-			mPos = getVectorAtLocation(mPos);
-			
-			Vector2d relPos = new Vector2d((double) (mouseX)/WIDTH, (double) (mouseY)/HEIGHT);
-			Vector2d newMPOS = new Vector2d(relPos.X()*((WIDTH*displayZoom)+(zoomConstant.X()*wr)), relPos.Y()*((HEIGHT*displayZoom)+(zoomConstant.Y()*wr)));
-			Vector2d nPos = mPos.difVector(newMPOS);
+			displayZoom = newZoom;
+			displayPosition = displayPosition.difVector(new Vector2d((e.getX() * zoomConstant.X() * c) / WIDTH, (e.getY() * zoomConstant.Y() * c) / HEIGHT));
 		
-			displayZoom = ((WIDTH*displayZoom)+(zoomConstant.X()*wr))/WIDTH;
-			displayPosition = nPos;
-		
-			displayChanged = true;
+			refreshDisplay();
 		}
 	}
 	
 	public void tick() { // LOOP FUNCTION
+		if (PLAY_SIMULATION) {
+			for(Road r : lines) {
+				r.tick();
+			}
+		}
 	}
 	
 	public void draw(Graphics2D g2d) { // RENDER FUNCTION
-		if (enterText) {
-			enterText = false;
-			textInput = JOptionPane.showInputDialog(this 
-					 ,"Enter text:");
-			
-			if (textInput == "") {
-				MODE = 0;
-				this.textInput = null;
-			} else {
-				this.textInputWidth = g2d.getFontMetrics().stringWidth(textInput);
-			}
-		}
+		g2d.setClip(new Rectangle(POS_X, POS_Y, WIDTH, HEIGHT));
 		if (displayChanged) {
 			g2d.clearRect(POS_X, POS_Y, WIDTH, HEIGHT);
 			
@@ -585,12 +617,21 @@ public class CSDisplay {
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
-				Vector2d imgDim = new Vector2d(WIDTH,HEIGHT).getTransformRS(displayZoom);
-				g2d.drawImage(img,0,0,WIDTH,HEIGHT,displayPosition.INTX(),displayPosition.INTY(),displayPosition.INTX()+imgDim.INTX(),displayPosition.INTY()+imgDim.INTY(),null);
+				g2d.drawImage(img,0,0,WIDTH,HEIGHT,displayPosition.INTX(),displayPosition.INTY(),displayPosition.INTX()+new Vector2d(WIDTH,HEIGHT).getTransformRS(displayZoom).INTX(),displayPosition.INTY()+new Vector2d(WIDTH,HEIGHT).getTransformRS(displayZoom).INTY(),null);
 			}
 				
 			for(Road l : lines){
 				l.attemptToRender(g2d, displayZoom);
+			}
+			
+			if(SELECTED_POINT != null && point_vectors[1] != null) {
+				if(MODE == 3) {
+					new CarRoad(SELECTED_POINT, new Bend(point_vectors[1].X(), point_vectors[1].Y()), 1).attemptToRender(g2d, displayZoom);
+				} else if(MODE == 4) {
+					new BicycleRoad(SELECTED_POINT, new Bend(point_vectors[1].X(), point_vectors[1].Y()), 1).attemptToRender(g2d, displayZoom);
+				} else if(MODE == 6) {
+					new CrossoverRoad(SELECTED_POINT, new Bend(point_vectors[1].X(), point_vectors[1].Y()), 1).attemptToRender(g2d, displayZoom);
+				}
 			}
 			
 			for(Bend p : points){
@@ -600,13 +641,13 @@ public class CSDisplay {
 				t.attemptToRender(g2d, displayZoom);
 			}
 			
-			if(textInput != null && point_vectors[1] != null) {
-				if (enteredText) {
+			if(textInput != null) {
+				if(point_vectors[1] != null) {
 					textInputWidth = g2d.getFontMetrics().stringWidth(textInput);
 					
 					Vector2d middleVector = point_vectors[0].sumVector(new Vector2d(textInputWidth, 0).getTransformRS(displayZoom));
 					
-					Vector2d v1 = middleVector.difVector(point_vectors[0]);
+					Vector2d v1 = new Vector2d(textInputWidth, 0).getTransformRS(displayZoom);
 					Vector2d v2 = middleVector.difVector(point_vectors[1]);
 					
 					double angle = v1.dotProduct(v2);
@@ -617,56 +658,26 @@ public class CSDisplay {
 					}
 					
 					new Text(point_vectors[0].X(), point_vectors[0].Y(), angle, textInput).attemptToRender(g2d, displayZoom);
-				} else {
-					new Text(point_vectors[1].X(), point_vectors[1].Y(), 0, textInput).attemptToRender(g2d, displayZoom);
+				} else if(point_vectors[0] != null) {
+					new Text(point_vectors[0].X(), point_vectors[0].Y(), 0, textInput).attemptToRender(g2d, displayZoom);
 				}
-			}
-			if(SELECTED_POINT != null && point_vectors[0] != null) {
-				Vector2d v1 = linTrans(point_vectors[0]);
-				Vector2d v2 = linTrans(point_vectors[1]);
-				
-				// Calculations
-				int yOffset = (int) Math.round(Math.ceil(Line.lineWidth / 2) * Math.pow(displayZoom, -1));
-				Vector2d difVector = v1.difVector(v2); 
-				
-				double distance = difVector.length();
-				
-				double dx = difVector.X();
-				double dy = difVector.Y();
-				
-				double angle = Math.atan(dy/dx);
-				
-				if(dx>=0){ // Check for 180 degree turns
-					angle += Math.PI;
-				}
-				
-				// Rendering
-				AffineTransform t = g2d.getTransform(); // Saving current rotation state
-				g2d.rotate(
-						   angle,
-						   v1.X(),
-						   v1.Y()
-						  ); // Rotating next render
-				
-				// Actual square rendering
-				if(MODE == 3) {
-					g2d.setColor(Color.BLUE);
-				} else if(MODE == 4) {
-					g2d.setColor(Color.RED);
-				} else if(MODE == 6) {
-					g2d.setColor(Color.LIGHT_GRAY);
-				}
-				g2d.fillRect(
-								(int) Math.round(v1.X()),
-								(int) Math.round(v1.Y()) - yOffset,
-								(int) Math.round(distance),
-								(int) Math.round(Line.lineWidth*Math.pow(displayZoom, -1))
-						    );
-			
-				g2d.setTransform(t); // Returning to old rotation state
 			}
 			
 			displayChanged = false;
+		}
+		if(PLAY_SIMULATION) {
+			for (Road r : lines) {
+				if(r.cars.size() != 0) {
+					r.attemptToRender(g2d, displayZoom);
+					
+					r.b1().attemptToRender(g2d, displayZoom);
+					r.b2().attemptToRender(g2d, displayZoom);
+					
+					r.renderCars(g2d, displayZoom);
+					
+					g2d.setClip(new Rectangle(POS_X, POS_Y, WIDTH, HEIGHT));
+				}
+			}
 		}
 	}
 }

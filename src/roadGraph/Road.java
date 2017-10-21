@@ -1,8 +1,10 @@
 package roadGraph;
 
 import java.awt.Graphics2D;
+import java.util.ArrayList;
 
 import graphCore.*;
+import simulation.Car;
 import windowManager.CSControl;
 import windowManager.CSDisplay;
 
@@ -11,9 +13,20 @@ public class Road extends Line {
 	public static int zoomRange = 5;
 	
 	private Bend b1, b2;
+	
+	private int nextRoad;
+	public ArrayList<Car> cars;
+	public boolean hadCar = false;
+	
+	private long timePassed = 0;
+	private long prevTime = 0;
 
-	public Road(Bend ip1, Bend ip2) {
+	public Road(Bend ip1, Bend ip2, double iWeight) {
 		super((Point) ip1, (Point) ip2);
+		
+		this.weight = iWeight;
+		
+		cars = new ArrayList<Car>();
 		
 		this.b1 = ip1;
 		this.b2 = ip2;
@@ -83,6 +96,58 @@ public class Road extends Line {
 		}
 		
 		return null;
+	}
+	public void getNextRoad() {
+		int i = 0;
+		for (Road r : CSDisplay.lines) {
+			if(r.p1.equals(this.p2)) {
+				this.nextRoad = i;
+				continue;
+			}
+			i++;
+		}
+		
+		if (i == CSDisplay.lines.size()) {
+			nextRoad = -1;
+		}
+		
+		cars = new ArrayList<Car>();
+	}
+	
+	public void addCar(Car c) {
+		cars.add(c);
+	}
+	public void tick () {
+		for(int i = 0; i < cars.size(); i++) {
+			if(cars.get(i).updateProgress(this)) {
+				if (nextRoad != -1) {
+					this.hadCar = true;
+					CSDisplay.lines.get(nextRoad).addCar(cars.get(i));
+				}
+				cars.remove(i);
+			}
+		}
+		
+		if (this instanceof CarRoad && this.b1.carsPerSecond > 0) {
+			long nanoTime = System.nanoTime();
+			if(prevTime == 0) {
+				prevTime = nanoTime; 
+			}
+			
+			timePassed += (nanoTime - prevTime);
+			if (timePassed / Math.pow(10, 9) >= (1/b1.carsPerSecond)) {
+				timePassed -= Math.pow(10, 9);
+				this.addCar(new Car());
+			}
+			
+			prevTime = nanoTime;
+		}
+	}
+	
+	public void renderCars(Graphics2D g2d, double displayZoom) {
+		for (int i = 0; i < cars.size(); i++) {
+			cars.get(i).draw(g2d, this, displayZoom);
+		}
 	}
 	
 	public void attemptToRender(Graphics2D g2d, double displayZoom) {

@@ -1,5 +1,7 @@
 package graphCore;
 
+import roadGraph.Vector2d;
+
 public class Coord {
 	private double X, Y;
 	
@@ -35,5 +37,8 @@ public class Coord {
 	}
 	public int INTY(){
 		return (int) Math.round(this.Y);
+	}
+	public Vector2d v() {
+		return new Vector2d(this.X, this.Y);
 	}
 }
