@@ -42,6 +42,12 @@ public class Vector2d {
 	public Vector2d difVector(Vector2d v) {
 		return new Vector2d(this.x - v.X(), this.y - v.Y());
 	}
+	public Vector2d product(double f) {
+		return new Vector2d(this.x*f, this.y*f);
+	}
+	public Vector2d quotient(double f) {
+		return new Vector2d(this.x/f, this.y/f);
+	}
 	public double det(Vector2d w) {
 		return (this.x * w.Y() - this.y * w.X());
 	}

@@ -32,6 +32,39 @@ public class Line {
 		return this.weight;
 	}
 	
+	public boolean isIn(Vector2d v) {
+		Vector2d difVector = p2.pos().v().difVector(p1.pos().v());
+		
+		double c = difVector.Y() / difVector.X();
+		Vector2d yOffset = new Vector2d( ( -1 * Math.pow(CSDisplay.displayZoom(), -1) * (lineWidth / 2) * c / Math.sqrt(c*c + 1) ), Math.pow(CSDisplay.displayZoom(), -1) * (lineWidth / 2) / Math.sqrt(c*c + 1));
+		
+		
+		System.out.println(p1.pos().X());
+		
+		Vector2d [] vect = {
+									p1.pos().v().difVector(yOffset),
+									p1.pos().v().sumVector(yOffset),
+									p2.pos().v().sumVector(yOffset),
+									p2.pos().v().difVector(yOffset)
+								   };
+		
+		double A = 1/2 * (-1 * vect[1].Y() * vect[2].X() + vect[0].Y() * (-1 * vect[1].X() + vect[2].X()) + vect[0].X() * (vect[1].Y() - vect[2].Y()) + vect[1].X() * vect[2].Y());
+	    double sign = A < 0 ? -1 : 1;
+	    double s = (vect[0].Y() * vect[2].X() - vect[0].X() * vect[2].Y() + (vect[2].Y() - vect[0].Y()) * v.X() + (vect[0].X() - vect[2].X()) * v.Y()) * sign;
+	    double t = (vect[0].Y() * vect[1].X() - vect[0].X() * vect[1].Y() + (vect[0].Y() - vect[1].Y()) * v.X() + (vect[1].X() - vect[0].X()) * v.Y()) * sign;
+	    
+	    boolean c1 = s > 0 && t > 0 && (s + t) < 2 * A * sign;
+	    
+	    A = 1/2 * (-1 * vect[1].Y() * vect[2].X() + vect[3].Y() * (-1 * vect[1].X() + vect[2].X()) + vect[3].X() * (vect[1].Y() - vect[2].Y()) + vect[1].X() * vect[2].Y());
+	    sign = A < 0 ? -1 : 1;
+	    s = (vect[3].Y() * vect[2].X() - vect[3].X() * vect[2].Y() + (vect[2].Y() - vect[3].Y()) * v.X() + (vect[3].X() - vect[2].X()) * v.Y()) * sign;
+	    t = (vect[3].Y() * vect[1].X() - vect[3].X() * vect[1].Y() + (vect[3].Y() - vect[1].Y()) * v.X() + (vect[1].X() - vect[3].X()) * v.Y()) * sign;
+	    
+	    boolean c2 = s > 0 && t > 0 && (s + t) < 2 * A * sign;
+	    
+	    return c1 || c2;
+	}
+	
 	public void drawLine(Graphics2D g2d, Vector2d v1, Vector2d v2, double displayZoom) {
 		/*
 		 * v(vect) = [  x   y  ]
@@ -44,10 +77,11 @@ public class Line {
 		 */
 		
 		
-		Vector2d difVector = v1.difVector(v2);
+		Vector2d difVector = v2.difVector(v1);
 		
 		double c = difVector.Y() / difVector.X();
 		Vector2d yOffset = new Vector2d( ( -1 * Math.pow(displayZoom, -1) * (lineWidth / 2) * c / Math.sqrt(c*c + 1) ), Math.pow(displayZoom, -1) * (lineWidth / 2) / Math.sqrt(c*c + 1));
+		
 		
 		Vector2d [] lineVectors = {
 									v1.difVector(yOffset),
@@ -67,9 +101,42 @@ public class Line {
 		}
 		g2d.setColor(color);
 		g2d.fillPolygon(xPoints, yPoints, 4);
+		
+		yOffset = new Vector2d( ( -1 * Math.pow(displayZoom, -1) * lineWidth * c / Math.sqrt(c*c + 1) ), Math.pow(displayZoom, -1) * lineWidth / Math.sqrt(c*c + 1));
+		Vector2d arrowLength = new Vector2d (
+				Math.pow(displayZoom, -1) * 2 / Math.sqrt(c*c + 1),
+				Math.pow(displayZoom, -1) * 2 * c / Math.sqrt(c*c + 1) 
+			   );
+		
+		/*if(difVector.Y() < -1) {
+			arrowLength = arrowLength.product(-1);
+		}*/
+		if(difVector.X() < -1) {
+			arrowLength = arrowLength.product(-1);
+		}
+		
+		Vector2d [] arrowVectors = {
+									v1.sumVector(difVector.quotient(2)),
+									v1.sumVector(difVector.quotient(2)).difVector(arrowLength).difVector(yOffset),
+									v1.sumVector(difVector.quotient(2)).difVector(yOffset),
+									v1.sumVector(difVector.quotient(2)).sumVector(arrowLength),
+									v1.sumVector(difVector.quotient(2)).sumVector(yOffset),
+									v1.sumVector(difVector.quotient(2)).difVector(arrowLength).sumVector(yOffset)
+								   };
+			
+		int [] xAPoints = new int[6];
+		int [] yAPoints = new int[6];
+		
+		i = 0;
+		for(Vector2d v : arrowVectors) {
+			xAPoints[i] = v.INTX();
+			yAPoints[i] = v.INTY();
+			i++;
+		}
+		g2d.setColor(Color.RED);
+		g2d.fillPolygon(xAPoints, yAPoints, 6);
 	}
-	
-	
+		
 	public void draw(Graphics2D g2d){ // Rendering method
 		this.drawLine(g2d, new Vector2d(p1.pos().X(),p1.pos().Y()), new Vector2d(p2.pos().X(),p2.pos().Y()),1);
 	}

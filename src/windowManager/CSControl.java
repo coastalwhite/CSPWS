@@ -298,7 +298,7 @@ public class CSControl {
 		EDIT_MODE = false;
 		editField = new EditField(o);
 		
-		displayChanged = true;
+		refreshDisplay();
 	}
 	
 	// Event Handlers
@@ -306,16 +306,6 @@ public class CSControl {
 		Vector2d mouseV = new Vector2d(e.getX(),e.getY());
 		
 		if(EDIT_MODE) {
-			if(mouseV.inRange(POS_X+1, POS_X+1+WIDTH, 120, 218)) {
-				try {
-					saveState("state1");
-				} catch (FileNotFoundException e1) {
-					e1.printStackTrace();
-				} catch (UnsupportedEncodingException e1) {
-					e1.printStackTrace();
-				}
-			}
-			
 			for(ModeButton mb : modebuttons) {
 				mb.attemptToClick(mouseV);
 			}
@@ -325,7 +315,9 @@ public class CSControl {
 			modebuttons.get(2).attemptToClick(mouseV);
 		}
 		
-		editField.attemptToClick(mouseV);
+		if(MODE == 8) {
+			editField.attemptToClick(mouseV);
+		}
 	}
 	
 	public void tick() {

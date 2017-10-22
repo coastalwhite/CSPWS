@@ -102,37 +102,5 @@ public class Car {
 		
 		g2d.setColor(color);
 		g2d.fillPolygon(xPoints, yPoints, 4);
-		
-		/*// Calculations
-		int yOffset = (int) Math.round(Math.ceil(WIDTH / 2) * Math.pow(displayZoom, -1));
-		Vector2d difVector = v2.difVector(v1);
-		
-		double dx = difVector.X();
-		double dy = difVector.Y();
-		
-		double angle = Math.atan(dy/dx);
-		
-		if(dx>=0){ // Check for 180 degree turns
-			angle += Math.PI;
-		}
-		
-		// Rendering
-		AffineTransform t = g2d.getTransform(); // Saving current rotation state
-		g2d.rotate(
-				   angle,
-				   v1.X()+progress*dx,
-				   v1.Y()+progress*dy
-				  ); // Rotating next render
-		
-		// Actual square rendering
-		g2d.setColor(color);
-		g2d.fillRect(
-						(int) Math.round(v1.X()+progress*dx),
-						(int) Math.round(v1.Y()+progress*dy) - yOffset,
-						(int) Math.round(LENGTH*Math.pow(displayZoom, -1)),
-						(int) Math.round(WIDTH*Math.pow(displayZoom, -1))
-				    );
-	
-		g2d.setTransform(t); // Returning to old rotation state*/
 	}
 }

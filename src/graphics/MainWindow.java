@@ -10,8 +10,10 @@ public class MainWindow extends JFrame {
 	public static int FRAME_WIDTH  = 1200,
 					  FRAME_HEIGHT = 900;
 	
+	public static MainWindow GUI;
+	
 	public static void main(String s[]) {
-		MainWindow GUI = new MainWindow();
+		GUI = new MainWindow();
 		GUI.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		GUI.setSize(FRAME_WIDTH, FRAME_HEIGHT);
 		GUI.setTitle("CS PWS");

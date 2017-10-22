@@ -128,7 +128,7 @@ public class Road extends Line {
 			}
 		}
 		
-		if (this instanceof CarRoad && this.b1.carsPerSecond > 0) {
+		if(this.b1.carsPerSecond > 0) {//if (this instanceof CarRoad && this.b1.carsPerSecond > 0) {
 			long nanoTime = System.nanoTime();
 			if(prevTime == 0) {
 				prevTime = nanoTime; 

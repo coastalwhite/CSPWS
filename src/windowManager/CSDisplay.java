@@ -1,6 +1,7 @@
 package windowManager;
 
 import java.awt.Color;
+import java.awt.Cursor;
 import java.awt.Font;
 import java.awt.Graphics2D;
 import java.awt.Image;
@@ -17,6 +18,8 @@ import javax.swing.JOptionPane;
 
 import graphCore.Line;
 import graphCore.Point;
+import graphics.MainWindow;
+import graphics.ScreenGraphics;
 import roadGraph.*;
 import simulation.Car;
 
@@ -79,6 +82,10 @@ public class CSDisplay {
 		this.textInputWidth = 0;
 	}
 	
+	public static double displayZoom() {
+		return displayZoom;
+	}
+	
 	public static void refreshDisplay() {
 		displayChanged = true;
 	}
@@ -97,20 +104,22 @@ public class CSDisplay {
 		return v.difVector(displayPosition).getTransformSR(displayZoom);
 	}
 	
-	public void moveScreen(int dx, int dy){
-		displayPosition = displayPosition.sumVector(new Vector2d(dx,dy).getTransformRS(displayZoom));
-		refreshDisplay();
+	private Bend getBendAtLocation(Vector2d mouseV) {
+		Bend tb = null;
+		for(Bend b : points) {
+			if(new Vector2d(b.pos().X(), b.pos().Y()).difVector(mouseV).length() <= Point.radius) {
+				tb = b;
+				continue;
+			}
+		}
+		return tb;
 	}
-	
 	public Object getObjectAtLocation(Vector2d v) {
 		Vector2d bv;
 		
-		for(Bend b : points) {
-			bv = new Vector2d(b.pos().X(), b.pos().Y());
-			if(bv.difVector(v).length() <= Point.radius*Math.pow(displayZoom, -1)) {
-				return b;
-			}
-		}
+		Bend b = getBendAtLocation(v);
+		
+		if (b != null) { return b; }
 		
 		Vector2d p1v, p2v;
 		
@@ -119,10 +128,8 @@ public class CSDisplay {
 		 * http://jsfiddle.net/PerroAZUL/zdaY8/1/
 		 */
 		for(Road r : lines) {
-			p1v = new Vector2d(r.p1().pos().X(), r.p1().pos().Y());
-			p2v = new Vector2d(r.p2().pos().X(), r.p2().pos().Y());
-			if(p1v.difVector(v).length()+p2v.difVector(v).length() <= (p1v.difVector(p2v).length()+Road.zoomRange*Math.pow(displayZoom, -1))) {
-				return r;
+			if(r.isIn(v)){
+				System.out.println("hi!");
 			}
 		}
 		
@@ -137,23 +144,6 @@ public class CSDisplay {
 		
 		return null;
 	}
-	public Vector2d getVectorAtLocation(Vector2d v) {
-		Object o = getObjectAtLocation(v);
-		
-		if (o == null) {
-			return v;
-		}
-		
-		if(o.getClass() == Road.class) {
-			Road r = (Road) o;
-			return new Vector2d((r.p1().pos().X()+r.p2().pos().X())/2, (r.p1().pos().Y()+r.p2().pos().Y())/2);
-		} else if(o.getClass() == Bend.class) {
-			Bend b = (Bend) o;
-			return new Vector2d(b.pos().X(), b.pos().Y());
-		}
-		
-		return v;
-	}
 	public ArrayList<Integer> getRoadsWithBend(Bend b) {
 		ArrayList<Integer> roadList = new ArrayList<Integer>();
 		
@@ -167,17 +157,7 @@ public class CSDisplay {
 		
 		return roadList;
 	}
-	
-	private Bend getBendAtLocation(Vector2d mouseV) {
-		Bend tb = null;
-		for(Bend b : points) {
-			if(new Vector2d(b.pos().X(), b.pos().Y()).difVector(mouseV).length() <= Point.radius) {
-				tb = b;
-				continue;
-			}
-		}
-		return tb;
-	}
+
 	
 	// Click Actions
 	private void removeObjects(Vector2d mouseV) {
@@ -515,6 +495,7 @@ public class CSDisplay {
 	public void mouseDrag(MouseEvent e) {
 		// General mouse around
 		if(CLICK_DOWN && !displayBackground) {
+			MainWindow.GUI.setCursor(Cursor.HAND_CURSOR);
 			displayPosition = displayPosition.difVector(new Vector2d(e.getX()-CLICK_X, e.getY()-CLICK_Y).getTransformRS(displayZoom));
 		
 			this.CLICK_X = e.getX();
@@ -574,7 +555,7 @@ public class CSDisplay {
 			 * HZ = Amount of Y zoom in Pixels
 			 * C = -1 for zoom out / 1 for zoom in
 			 * 
-			 * Mouse Position (MP) : Vector ( Mx * Z + Px , My * Z + Py )  --  Click onto objects if possible
+			 * Mouse Position (MP) : Vector ( Mx * Z + Px , My * Z + Py )
 			 * Relative Position (R) : Vector ( Mx / WIDTH , My / HEIGHT )
 			 * New Mouse Position (NM) : Vector ( Rx * ( ( WIDTH * Z ) + ( WZ * C ) ) , Ry * ( ( HEIGHT * Z ) + ( HZ * C ) ) )
 			 * New display position : MP - NM = P - ( ( M * F * C ) / D )
@@ -593,6 +574,7 @@ public class CSDisplay {
 				r.tick();
 			}
 		}
+		if (!CLICK_DOWN) { MainWindow.GUI.setCursor(Cursor.getDefaultCursor()); }
 	}
 	
 	public void draw(Graphics2D g2d) { // RENDER FUNCTION
