@@ -49,6 +49,7 @@ public class ModeButton {
 			ArrayList<Bend> bends;
 			ArrayList<Road> roads;
 			ArrayList<Text> texts;
+			CSControl.resetWeightEdit();
 			switch (MODE) {
 			case 8:
 				CSDisplay.MODE = this.MODE;
@@ -140,9 +141,6 @@ public class ModeButton {
 					CSDisplay.PLAY_SIMULATION = false;
 					buttonsDisabled = false;
 				} else {
-					for(Road r : CSDisplay.lines) {
-						r.getNextRoad();
-					}
 					buttonsDisabled = true;
 					CSControl.EDIT_MODE = false;
 					this.imagePath = "Stop.png";

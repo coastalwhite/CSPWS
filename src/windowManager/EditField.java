@@ -3,11 +3,14 @@ package windowManager;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.Graphics2D;
+import java.awt.Image;
+import java.io.File;
+import java.io.IOException;
 
+import javax.imageio.ImageIO;
 import javax.swing.JOptionPane;
 
-import roadGraph.Bend;
-import roadGraph.Vector2d;
+import roadGraph.*;
 
 public class EditField {
 	private Object o = null;
@@ -31,12 +34,37 @@ public class EditField {
 		
 		buttonCount++;
 	}
+	private void drawButton(Graphics2D g2d, String s, int i) {
+		g2d.setColor(Color.WHITE);
+		g2d.drawRect(x, y+5+i*SPACE, WIDTH, 30);
+		g2d.setColor(Color.BLACK);
+		g2d.drawString(s, x+5, y+28+i*SPACE);
+		
+		buttonCount++;
+	}
+	private void drawImgButton(Graphics2D g2d, String s, String imgPath, int i) {
+		g2d.setColor(Color.WHITE);
+		g2d.drawRect(x, y+5+i*SPACE, WIDTH, 30);
+		g2d.setColor(Color.BLACK);
+		g2d.drawString(s, x+5, y+28+i*SPACE);
+		
+		Image img = null;
+		try {
+			img = ImageIO.read(new File("img\\" + imgPath));
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		
+		g2d.drawImage(img,x+WIDTH-27,y+8+i*SPACE,x+WIDTH-2,y+33+i*SPACE,0,0,256,256,null);
+		
+		buttonCount++;
+	}
 	
 	public void draw(Graphics2D g2d) {
 		if(o instanceof Bend) {
 			/*
-			 * 1: carsPerSecond
-			 * 2: bikesPerSecond
+			 * 0: carsPerSecond
+			 * 1: bikesPerSecond
 			 */
 			
 			Bend b = (Bend) o;
@@ -45,6 +73,19 @@ public class EditField {
 			
 			drawStroke(g2d, "carsPerSecond", Double.toString(b.carsPerSecond), 0);
 			drawStroke(g2d, "bikesPerSecond", Double.toString(b.bikesPerSecond), 1);
+		} else if (o instanceof Road) {
+			/*
+			 * 0: switch Directions
+			 * 1: Change Weight
+			 */
+			
+			Road r = (Road) o;
+			
+			g2d.setFont(new Font("sansserif", Font.BOLD, 16));
+			
+			drawButton(g2d, "switchDirection", 0);
+			drawStroke(g2d, "Weight", Double.toString(r.weight()), 1);
+			drawImgButton(g2d, "Progression", "buttons/dice.png", 2);
 		}
 	}
 	
@@ -62,7 +103,6 @@ public class EditField {
 						if (textInput != "") {
 							b.carsPerSecond = Double.parseDouble(textInput);
 							CSControl.refreshDisplay();
-							CSDisplay.refreshDisplay();
 						}
 						break;
 					case 1:
@@ -72,8 +112,39 @@ public class EditField {
 						if (textInput != "") {
 							b.bikesPerSecond = Double.parseDouble(textInput);
 							CSControl.refreshDisplay();
-							CSDisplay.refreshDisplay();
 						}
+						break;
+					}
+				} else if(this.o instanceof Road) {
+					Road r = (Road) o;
+					switch (i) {
+					case 0:
+						System.out.println("hi!");
+						r.switchDirection();
+						CSDisplay.refreshDisplay();
+						break;
+					case 1:
+						textInput = JOptionPane.showInputDialog(this 
+								 ,Double.toString(r.weight()));
+						
+						if (textInput != "") {
+							r.setWeight(Double.parseDouble(textInput));
+							CSControl.refreshDisplay();
+						}
+						break;
+					case 2:
+						for(Road road : r.nextRoad) {
+							if(road.color == Color.GREEN) {
+								road.color = r.color;
+								r.weightEdit = false;
+								CSDisplay.weightEdit = null;
+							} else {
+								r.weightEdit = true;
+								CSDisplay.weightEdit = r;
+								road.color = Color.GREEN;
+							}
+						}
+						CSDisplay.refreshDisplay();
 						break;
 					}
 				}

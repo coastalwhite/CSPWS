@@ -31,8 +31,7 @@ public class CSControl {
 	
 	private static boolean displayChanged = true;
 	
-	private static EditField editField;
-	
+	public static EditField editField;
 	private static ArrayList<ModeButton> modebuttons = new ArrayList<ModeButton>();
 	
 	public CSControl() {
@@ -47,6 +46,7 @@ public class CSControl {
 		int rowDim = 60;
 		
 		/*
+		 * -6 = Start Simulation
 		 * -5 = Add New State
 		 * -4 = Image Import & Use
 		 * -3 = State Import
@@ -60,6 +60,7 @@ public class CSControl {
 		 * 5 = Add Traffic Light Mode
 		 * 6 = Add Crossover Mode
 		 * 7 = Add Text Mode
+		 * 8 = Info Mode
 		 */
 		
 		//modebuttons.add(new ModeButton(POS_X+10+0*rowDim, POS_Y+10+0*rowDim, 0, ".png"));
@@ -121,6 +122,8 @@ public class CSControl {
 		Road r;
 		Bend b;
 		
+		ArrayList<String> nextRoadStrings = new ArrayList<String>();
+		
 		for(int i = 0; i < split.length; i++) {
 			split[i] = split[i].replace('<', '0');
 			prop = split[i].split(",");
@@ -154,15 +157,17 @@ public class CSControl {
 					break;
 				}
 				break;
-			case "Line": // <#ID,Line,Type,#PointID1,#PointID2>
+			case "Line": // <#ID,Line,Type,#PointID1,#PointID2, Weight, NextRoads>
 				switch (prop[2]) {
 				case "Type1":
 					r = new CarRoad(bends.get(Integer.parseInt(prop[3])-1), bends.get(Integer.parseInt(prop[4])-1), Double.parseDouble(prop[5]));
 					roads.add(r);
+					nextRoadStrings.add(prop[6]);
 					break;
 				case "Type2":
 					r = new BicycleRoad(bends.get(Integer.parseInt(prop[3])-1), bends.get(Integer.parseInt(prop[4])-1), Double.parseDouble(prop[5]));
 					roads.add(r);
+					nextRoadStrings.add(prop[6]);
 					break;
 				case "Type3":
 					r = new CrossoverRoad(bends.get(Integer.parseInt(prop[3])-1), bends.get(Integer.parseInt(prop[4])-1), Double.parseDouble(prop[5]));
@@ -178,6 +183,23 @@ public class CSControl {
 				texts.add(new Text(Double.parseDouble(prop[3]), Double.parseDouble(prop[4]), Double.parseDouble(prop[5]), prop[6]));
 				break;
 			}
+			
+		}
+		
+		int j = 0;
+		String[] list;
+		for(String str : nextRoadStrings) {
+			str = str.replace('{', '0').replace('}', '0');
+			if(str.length() != 2) {
+				list = str.split(";");
+				for(String rstr : list) {
+					prop = rstr.split(":");
+					
+					roads.get(j).nextRoad.add(roads.get((Integer.parseInt(prop[0])-bends.size()-1)));
+					roads.get(j).nextRoadProbability.add(Double.parseDouble(prop[1]));
+				}
+			}
+			j++;
 		}
 		
 		CSDisplay.lines = roads;
@@ -209,6 +231,7 @@ public class CSControl {
 			writer.println("<" + Integer.toString(i) + ",Point," + type + "," + Double.toString(b.pos().X()) + "," + Double.toString(b.pos().Y()) + "," + Double.toString(b.carsPerSecond) + "," + Double.toString(b.bikesPerSecond) + ">");
 		}
 		
+		int bendAmount = i;
 		int b1, b2;
 		for(Road r : CSDisplay.lines) {
 			i++;
@@ -225,8 +248,17 @@ public class CSControl {
 			} else if(r.getClass() == CrossoverRoad.class) {
 				type = "Type3";
 			}
-			
-			writer.println("<" + Integer.toString(i) + ",Line," + type + "," + Integer.toString(b1+1) + "," + Integer.toString(b2+1) + "," + Double.toString(r.weight()) + ">");
+			writer.print("<" + Integer.toString(i) + ",Line," + type + "," + Integer.toString(b1+1) + "," + Integer.toString(b2+1) + "," + Double.toString(r.weight()) + ",{");
+			int j = 0;
+			for(Road nr : r.nextRoad) {
+				writer.print(Integer.toString(CSDisplay.lines.indexOf(nr)+bendAmount+1) + ":" + Double.toString(r.nextRoadProbability.get(j)));
+				
+				j++;
+				if(j != r.nextRoad.size()) {
+					writer.print(";");
+				}
+			}
+			writer.println("}>");
 		}
 		for(Text t : CSDisplay.textObjects) {
 			i++;
@@ -294,8 +326,24 @@ public class CSControl {
 		writer.close();
 	}
 	
+	public static void resetWeightEdit() {
+		if(CSDisplay.weightEdit != null) {
+			CSDisplay.weightEdit.weightEdit = false;
+			
+			for(Road road : CSDisplay.weightEdit.nextRoad) {
+				road.color = CSDisplay.weightEdit.color;
+			}
+			CSDisplay.weightEdit = null;
+		}
+	}
+	
 	public static void showObjectInfo(Object o) {
 		EDIT_MODE = false;
+		
+		if(o instanceof Road) {
+			resetWeightEdit();
+		}
+		
 		editField = new EditField(o);
 		
 		refreshDisplay();

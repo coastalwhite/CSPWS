@@ -12,6 +12,7 @@ import java.awt.geom.AffineTransform;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 
 import javax.imageio.ImageIO;
 import javax.swing.JOptionPane;
@@ -62,6 +63,7 @@ public class CSDisplay {
 	
 	// Simulation Settings
 	public static boolean PLAY_SIMULATION       =                        false;
+	public static Road weightEdit               =                         null;
 	
 	// Non Static
 	private boolean clickedText = false;
@@ -114,6 +116,7 @@ public class CSDisplay {
 		}
 		return tb;
 	}
+
 	public Object getObjectAtLocation(Vector2d v) {
 		Vector2d bv;
 		
@@ -121,15 +124,12 @@ public class CSDisplay {
 		
 		if (b != null) { return b; }
 		
-		Vector2d p1v, p2v;
-		
 		/*
-		 * For later use
-		 * http://jsfiddle.net/PerroAZUL/zdaY8/1/
+		 * http://www.geeksforgeeks.org/how-to-check-if-a-given-point-lies-inside-a-polygon/
 		 */
 		for(Road r : lines) {
 			if(r.isIn(v)){
-				System.out.println("hi!");
+				return r;
 			}
 		}
 		
@@ -185,25 +185,62 @@ public class CSDisplay {
 		Bend tb = getBendAtLocation(mouseV);
 		
 		if(SELECTED_POINT != null) {
-			
+			boolean newPointCreated = false;
 			if(tb == null) {
 				tb = new Bend(mouseV.X(), mouseV.Y());
 				points.add(tb);
+				newPointCreated = true;
+			}
+			
+			Road r;
+			
+			switch (type) {
+			case 1:
+				r = new CarRoad(SELECTED_POINT,tb,100000);
+				break;
+			case 2:
+				r = new BicycleRoad(SELECTED_POINT,tb,100000);
+				break;
+			default:
+				r = new Road(SELECTED_POINT,tb,100000);
+				break;
+			}
+			
+			if(!newPointCreated) {
+				ArrayList<Integer> roadInts = getRoadsWithBend(tb);
+				if(roadInts.size() != 0) {
+					for(Integer rIndex : roadInts) {
+						if(lines.get(rIndex).b1().equals(tb)) {
+							r.nextRoad.add(lines.get(rIndex));
+							r.nextRoadProbability.add(1.0);
+						}
+					}
+					
+					for(int i = 0; i < r.nextRoad.size(); i++) {
+						r.nextRoadProbability.set(i, (1.0/r.nextRoad.size()));
+					}
+				}
+				
 			}
 			
 			if (!tb.equals(SELECTED_POINT)) {
 				
-				switch (type) {
-				case 1:
-					lines.add(new CarRoad(SELECTED_POINT,tb,1));
-					break;
-				case 2:
-					lines.add(new BicycleRoad(SELECTED_POINT,tb,1));
-					break;
-				default:
-					lines.add(new Road(SELECTED_POINT,tb,1));
-					break;
+				for(Integer rIndex : getRoadsWithBend(SELECTED_POINT)) {
+					if(lines.get(rIndex).b2().equals(SELECTED_POINT)) {
+						if(lines.get(rIndex).nextRoad.size() == 0) {
+							lines.get(rIndex).nextRoad.add(r);
+							lines.get(rIndex).nextRoadProbability.add(1.0);
+						} else {
+							for(int i = 0; i < lines.get(rIndex).nextRoad.size(); i++) {
+								lines.get(rIndex).nextRoadProbability.set(i, lines.get(rIndex).nextRoadProbability.get(i)/2);
+							}
+							lines.get(rIndex).nextRoad.add(r);
+							lines.get(rIndex).nextRoadProbability.add(0.5);
+						}
+					}
 				}
+				
+				lines.add(r);
 				
 			}
 			
@@ -275,16 +312,16 @@ public class CSDisplay {
 				
 				if(CarRoad.class == smallestRoad.getClass()) {
 					lines.add(new CarRoad(smallestRoad.b1(),stBend,1));
-					lines.add(new CarRoad(smallestRoad.b2(),stBend,1));
+					lines.add(new CarRoad(stBend,smallestRoad.b2(),1));
 				} else if(BicycleRoad.class == smallestRoad.getClass()) {
 					lines.add(new BicycleRoad(smallestRoad.b1(),stBend,1));
-					lines.add(new BicycleRoad(smallestRoad.b2(),stBend,1));
+					lines.add(new BicycleRoad(stBend,smallestRoad.b2(),1));
 				} else if(CrossoverRoad.class == smallestRoad.getClass()) {
 					lines.add(new CrossoverRoad(smallestRoad.b1(),stBend,1));
-					lines.add(new CrossoverRoad(smallestRoad.b2(),stBend,1));
+					lines.add(new CrossoverRoad(stBend,smallestRoad.b2(),1));
 				} else {
 					lines.add(new Road(smallestRoad.b1(),stBend,1));
-					lines.add(new Road(smallestRoad.b2(),stBend,1));
+					lines.add(new Road(stBend,smallestRoad.b2(),1));
 				}
 					
 				
@@ -456,7 +493,13 @@ public class CSDisplay {
 		
 		Vector2d mouseV = new Vector2d(CLICK_X,CLICK_Y).getTransformRS(displayZoom).sumVector(displayPosition);
 		if(e.getButton() == 1 && new Vector2d(CLICK_X, CLICK_Y).inRange(POS_X, POS_X+WIDTH, POS_Y, POS_Y+HEIGHT)) {
-			CLICK_DOWN = true;
+			if(weightEdit == null) {
+				CLICK_DOWN = true;
+			} else {
+				if(!weightEdit.editWeight(mouseV)) {
+					CLICK_DOWN = true;
+				}
+			}
 		}
 		
 		if(e.getButton() == 3) {
@@ -621,6 +664,9 @@ public class CSDisplay {
 			}
 			for(Text t : textObjects) {
 				t.attemptToRender(g2d, displayZoom);
+			}
+			for(Road l : lines){
+				l.drawEditWeight(g2d);
 			}
 			
 			if(textInput != null) {
