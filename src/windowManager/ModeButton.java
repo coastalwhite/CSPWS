@@ -49,6 +49,7 @@ public class ModeButton {
 			ArrayList<Bend> bends;
 			ArrayList<Road> roads;
 			ArrayList<Text> texts;
+			CSControl.resetWeightEdit();
 			switch (MODE) {
 			case 8:
 				CSDisplay.MODE = this.MODE;
@@ -76,7 +77,7 @@ public class ModeButton {
 				break;
 			case -2: // Save Button
 				fileChooser = new JFileChooser();
-				fileChooser.setCurrentDirectory(new File("states\\"));
+				fileChooser.setCurrentDirectory(new File("states" + CSControl.slash));
 				if (fileChooser.showSaveDialog(null) == JFileChooser.APPROVE_OPTION) {
 					File file = fileChooser.getSelectedFile();
 				  
@@ -95,7 +96,7 @@ public class ModeButton {
 				texts = CSDisplay.textObjects;
 				
 				fileChooser = new JFileChooser();
-				fileChooser.setCurrentDirectory(new File("states\\"));
+				fileChooser.setCurrentDirectory(new File("states" + CSControl.slash));
 				if (fileChooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
 					File file = fileChooser.getSelectedFile();
 					
@@ -113,7 +114,7 @@ public class ModeButton {
 					this.innerColor = selectedColor;
 					
 					fileChooser = new JFileChooser();
-					fileChooser.setCurrentDirectory(new File("img\\background\\"));
+					fileChooser.setCurrentDirectory(new File("img" + CSControl.slash + "background" + CSControl.slash));
 					if (fileChooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
 						File file = fileChooser.getSelectedFile();
 						
@@ -140,9 +141,6 @@ public class ModeButton {
 					CSDisplay.PLAY_SIMULATION = false;
 					buttonsDisabled = false;
 				} else {
-					for(Road r : CSDisplay.lines) {
-						r.getNextRoad();
-					}
 					buttonsDisabled = true;
 					CSControl.EDIT_MODE = false;
 					this.imagePath = "Stop.png";
@@ -197,7 +195,7 @@ public class ModeButton {
 		
 		Image img = null;
 		try {
-			img = ImageIO.read(new File("img\\buttons\\" + imagePath));
+			img = ImageIO.read(new File("img" + CSControl.slash + "buttons" + CSControl.slash + imagePath));
 		} catch (IOException e) {
 			e.printStackTrace();
 		}

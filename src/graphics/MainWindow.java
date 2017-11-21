@@ -8,7 +8,7 @@ public class MainWindow extends JFrame {
 	 */
 	private static final long serialVersionUID = 1L;
 	public static int FRAME_WIDTH  = 1200,
-					  FRAME_HEIGHT = 900;
+					  FRAME_HEIGHT = 700;
 	
 	public static MainWindow GUI;
 	

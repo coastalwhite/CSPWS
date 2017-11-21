@@ -2,17 +2,17 @@ package graphCore;
 
 import java.awt.Color;
 import java.awt.Graphics2D;
-import java.awt.Polygon;
-import java.awt.geom.AffineTransform;
 
 import roadGraph.Vector2d;
-import windowManager.CSDisplay;
 
 public class Line {
 	protected Point p1, p2;
 	protected double weight;
 	public static int lineWidth = 3;
 	public Color color = Color.GRAY;
+	public Color arrowColor = Color.RED;
+	
+	public static double convertFactor = 1.0;
 	
 	public Line(Point ip1, Point ip2){
 		// INIT
@@ -29,40 +29,7 @@ public class Line {
 		return this.p2;
 	}
 	public double weight(){
-		return this.weight;
-	}
-	
-	public boolean isIn(Vector2d v) {
-		Vector2d difVector = p2.pos().v().difVector(p1.pos().v());
-		
-		double c = difVector.Y() / difVector.X();
-		Vector2d yOffset = new Vector2d( ( -1 * Math.pow(CSDisplay.displayZoom(), -1) * (lineWidth / 2) * c / Math.sqrt(c*c + 1) ), Math.pow(CSDisplay.displayZoom(), -1) * (lineWidth / 2) / Math.sqrt(c*c + 1));
-		
-		
-		System.out.println(p1.pos().X());
-		
-		Vector2d [] vect = {
-									p1.pos().v().difVector(yOffset),
-									p1.pos().v().sumVector(yOffset),
-									p2.pos().v().sumVector(yOffset),
-									p2.pos().v().difVector(yOffset)
-								   };
-		
-		double A = 1/2 * (-1 * vect[1].Y() * vect[2].X() + vect[0].Y() * (-1 * vect[1].X() + vect[2].X()) + vect[0].X() * (vect[1].Y() - vect[2].Y()) + vect[1].X() * vect[2].Y());
-	    double sign = A < 0 ? -1 : 1;
-	    double s = (vect[0].Y() * vect[2].X() - vect[0].X() * vect[2].Y() + (vect[2].Y() - vect[0].Y()) * v.X() + (vect[0].X() - vect[2].X()) * v.Y()) * sign;
-	    double t = (vect[0].Y() * vect[1].X() - vect[0].X() * vect[1].Y() + (vect[0].Y() - vect[1].Y()) * v.X() + (vect[1].X() - vect[0].X()) * v.Y()) * sign;
-	    
-	    boolean c1 = s > 0 && t > 0 && (s + t) < 2 * A * sign;
-	    
-	    A = 1/2 * (-1 * vect[1].Y() * vect[2].X() + vect[3].Y() * (-1 * vect[1].X() + vect[2].X()) + vect[3].X() * (vect[1].Y() - vect[2].Y()) + vect[1].X() * vect[2].Y());
-	    sign = A < 0 ? -1 : 1;
-	    s = (vect[3].Y() * vect[2].X() - vect[3].X() * vect[2].Y() + (vect[2].Y() - vect[3].Y()) * v.X() + (vect[3].X() - vect[2].X()) * v.Y()) * sign;
-	    t = (vect[3].Y() * vect[1].X() - vect[3].X() * vect[1].Y() + (vect[3].Y() - vect[1].Y()) * v.X() + (vect[1].X() - vect[3].X()) * v.Y()) * sign;
-	    
-	    boolean c2 = s > 0 && t > 0 && (s + t) < 2 * A * sign;
-	    
-	    return c1 || c2;
+		return this.weight * convertFactor;
 	}
 	
 	public void drawLine(Graphics2D g2d, Vector2d v1, Vector2d v2, double displayZoom) {
@@ -80,7 +47,7 @@ public class Line {
 		Vector2d difVector = v2.difVector(v1);
 		
 		double c = difVector.Y() / difVector.X();
-		Vector2d yOffset = new Vector2d( ( -1 * Math.pow(displayZoom, -1) * (lineWidth / 2) * c / Math.sqrt(c*c + 1) ), Math.pow(displayZoom, -1) * (lineWidth / 2) / Math.sqrt(c*c + 1));
+		Vector2d yOffset = new Vector2d( ( -1 * Math.pow(displayZoom, -1) * ((lineWidth * Math.pow(convertFactor, -1)) / 2) * c / Math.sqrt(c*c + 1) ), Math.pow(displayZoom, -1) * ((lineWidth * Math.pow(convertFactor, -1)) / 2) / Math.sqrt(c*c + 1));
 		
 		
 		Vector2d [] lineVectors = {
@@ -102,7 +69,7 @@ public class Line {
 		g2d.setColor(color);
 		g2d.fillPolygon(xPoints, yPoints, 4);
 		
-		yOffset = new Vector2d( ( -1 * Math.pow(displayZoom, -1) * lineWidth * c / Math.sqrt(c*c + 1) ), Math.pow(displayZoom, -1) * lineWidth / Math.sqrt(c*c + 1));
+		yOffset = new Vector2d( ( -1 * Math.pow(displayZoom, -1) * (lineWidth * Math.pow(convertFactor, -1)) * c / Math.sqrt(c*c + 1) ), Math.pow(displayZoom, -1) * (lineWidth * Math.pow(convertFactor, -1)) / Math.sqrt(c*c + 1));
 		Vector2d arrowLength = new Vector2d (
 				Math.pow(displayZoom, -1) * 2 / Math.sqrt(c*c + 1),
 				Math.pow(displayZoom, -1) * 2 * c / Math.sqrt(c*c + 1) 
@@ -133,7 +100,7 @@ public class Line {
 			yAPoints[i] = v.INTY();
 			i++;
 		}
-		g2d.setColor(Color.RED);
+		g2d.setColor(arrowColor);
 		g2d.fillPolygon(xAPoints, yAPoints, 6);
 	}
 		

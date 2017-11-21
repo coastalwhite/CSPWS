@@ -21,7 +21,7 @@ public class Bend extends Point {
 		
 		this.doDisplay = false;
 		
-		v1 = CSDisplay.linTrans(new Vector2d(pos.X(), pos.Y()));
+		v1 = CSDisplay.tSR(new Vector2d(pos.X(), pos.Y()));
 		
 		if(!this.doDisplay) { this.doDisplay = v1.inRange(-1 * radius, CSDisplay.WIDTH+radius, -1 * radius, CSDisplay.HEIGHT+radius); }
 		
@@ -47,7 +47,7 @@ public class Bend extends Point {
 		}
 		
 		if(doDisplay) {
-			v1 = CSDisplay.linTrans(new Vector2d(pos.X(), pos.Y()));
+			v1 = CSDisplay.tSR(new Vector2d(pos.X(), pos.Y()));
 			
 			this.drawPoint(g2d, v1, displayZoom);
 		}

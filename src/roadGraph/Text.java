@@ -33,7 +33,7 @@ public class Text {
 			defaultLength = new Vector2d(g2d.getFontMetrics().stringWidth(text),0.0f).getTransformRS(displayZoom).X();
 		}
 		
-		Vector2d posV = CSDisplay.linTrans(new Vector2d(POS_X, POS_Y));
+		Vector2d posV = CSDisplay.tSR(new Vector2d(POS_X, POS_Y));
 		
 		// Rendering
 		AffineTransform t = g2d.getTransform(); // Saving current rotation state

@@ -61,4 +61,12 @@ public class Vector2d {
 	public void pr(String n) { // DEBUG FUNCTION
 		System.out.println(n + ": (X: " + this.x + " , Y: " + this.y + ")");
 	}
+
+	public boolean inIn(Vector2d v1, Vector2d v2) {
+		return this.inRange(v1.INTX(), v2.INTX(), v1.INTY(), v2.INTY());
+	}
+
+	public boolean inRange(double d, double e, double f, double g) {
+		return (this.x >= d && this.x <= e && y >= f && y <= g);
+	}
 }

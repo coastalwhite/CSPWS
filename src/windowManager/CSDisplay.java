@@ -8,26 +8,24 @@ import java.awt.Image;
 import java.awt.Rectangle;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
-import java.awt.geom.AffineTransform;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 
 import javax.imageio.ImageIO;
-import javax.swing.JOptionPane;
 
 import graphCore.Line;
 import graphCore.Point;
 import graphics.MainWindow;
-import graphics.ScreenGraphics;
 import roadGraph.*;
 import simulation.Car;
+import simulation.Vehicle;
 
 public class CSDisplay {
 	
 	// Window Settings
 	public static int WIDTH                     =                         1000,
-					  HEIGHT                    =                          900,
+					  HEIGHT                    =      					  700,
 					  POS_X                     =                            0,
 					  POS_Y                     =                            0;
 	
@@ -38,7 +36,7 @@ public class CSDisplay {
 	// View Settings
 	private static Vector2d displayPosition     =    new Vector2d (0.0f, 0.0f);
 	private static double displayZoom           =                         1.0f;
-	private static Vector2d zoomConstant        = new Vector2d (100.0f, 90.0f);
+	private static Vector2d zoomConstant        = new Vector2d (100.0f, 70.0f);
 	private static boolean displayChanged       =                        false;
 	
 	// Editor Settings
@@ -60,8 +58,11 @@ public class CSDisplay {
 	public static ArrayList<Road> lines         =        new ArrayList<Road>();
 	public static ArrayList<Text> textObjects   =        new ArrayList<Text>();
 	
+	public static ArrayList<Double> factors     =      new ArrayList<Double>();
+	
 	// Simulation Settings
 	public static boolean PLAY_SIMULATION       =                        false;
+	public static Road weightEdit               =                         null;
 	
 	// Non Static
 	private boolean clickedText = false;
@@ -100,7 +101,7 @@ public class CSDisplay {
 		refreshDisplay();
 	}
 	
-	public static Vector2d linTrans(Vector2d v) {
+	public static Vector2d tSR(Vector2d v) {
 		return v.difVector(displayPosition).getTransformSR(displayZoom);
 	}
 	
@@ -114,6 +115,7 @@ public class CSDisplay {
 		}
 		return tb;
 	}
+
 	public Object getObjectAtLocation(Vector2d v) {
 		Vector2d bv;
 		
@@ -121,15 +123,12 @@ public class CSDisplay {
 		
 		if (b != null) { return b; }
 		
-		Vector2d p1v, p2v;
-		
 		/*
-		 * For later use
-		 * http://jsfiddle.net/PerroAZUL/zdaY8/1/
+		 * http://www.geeksforgeeks.org/how-to-check-if-a-given-point-lies-inside-a-polygon/
 		 */
 		for(Road r : lines) {
 			if(r.isIn(v)){
-				System.out.println("hi!");
+				return r;
 			}
 		}
 		
@@ -144,7 +143,7 @@ public class CSDisplay {
 		
 		return null;
 	}
-	public ArrayList<Integer> getRoadsWithBend(Bend b) {
+	public static ArrayList<Integer> getRoadsWithBend(Bend b) {
 		ArrayList<Integer> roadList = new ArrayList<Integer>();
 		
 		int i = 0;
@@ -181,141 +180,255 @@ public class CSDisplay {
 			refreshDisplay();
 		}
 	}
-	private void addRoad(int type, Vector2d mouseV) {
-		Bend tb = getBendAtLocation(mouseV);
+	
+	private void addRoad(Vector2d mouseV, boolean t) {
+		Bend b = getBendAtLocation(mouseV);
 		
-		if(SELECTED_POINT != null) {
-			
-			if(tb == null) {
-				tb = new Bend(mouseV.X(), mouseV.Y());
-				points.add(tb);
+		if(SELECTED_POINT == null) {
+			// Create Clip on
+			if(b != null) {
+				SELECTED_POINT = b;
 			}
-			
-			if (!tb.equals(SELECTED_POINT)) {
-				
-				switch (type) {
-				case 1:
-					lines.add(new CarRoad(SELECTED_POINT,tb,1));
-					break;
-				case 2:
-					lines.add(new BicycleRoad(SELECTED_POINT,tb,1));
-					break;
-				default:
-					lines.add(new Road(SELECTED_POINT,tb,1));
-					break;
-				}
-				
-			}
-			
-			SELECTED_POINT = null;
-			point_vectors[0] = null;
-			point_vectors[1] = null;
-			refreshDisplay();
 		} else {
-			SELECTED_POINT = tb;
-		}
-	}
-	private void addCrossover(Vector2d mouseV) {
-		Bend tb = getBendAtLocation(mouseV);
-		Vector2d bv;
-		
-		if(SELECTED_POINT != null) {
-			if(tb == null) {
-				tb = new CrossoverPoint(mouseV.X(), mouseV.Y());
-				points.add(tb);
+			// Add new point if none selected
+			if(b == null) {
+				b = new Bend(mouseV.X(), mouseV.Y());
+				points.add(b);
 			}
 			
-			ArrayList<Double> ts = new ArrayList<Double>();
-			ArrayList<Road> roads = new ArrayList<Road>();
+			Road r = new Road(SELECTED_POINT, b, 1);
 			
-			CrossoverRoad cr = new CrossoverRoad(tb,SELECTED_POINT,1);
+			Bend bend = r.b1();
+			CrossoverPoint cp = null;
+			Road r1, r2, road, newRoad, s;
+			Vector2d intersection = null;
+			int size = lines.size(), size2 = lines.size(), index = 0;
 			
-			for(Road r : lines) {
-				bv = r.getCrosspoint(cr);
+			for(int i = 0; i < lines.size(); i++) {
+				road = lines.get(i);
 				
-				if(bv != null) {
-					ts.add(bv.X());
-					roads.add(r);
+				// Add Intersections
+				if(i < size) {
+					// Check if intersecting
+					intersection = r.getCrosspoint(road);
+					if(intersection != null) {
+						intersection = r.toIntersect(intersection);
+						// Check if not same point used
+						if(
+								intersection.difVector(r.b1().pos().v()).length() > Point.radius &&
+								intersection.difVector(r.b2().pos().v()).length() > Point.radius
+						   ) {
+							cp = new CrossoverPoint(intersection.X(), intersection.Y());
+							
+							// Split intersection roads in two
+							r1 = road instanceof CarRoad ? new CarRoad(road.b1(),cp,cp.disTo(road.b1())) : new BicycleRoad(road.b1(),cp,cp.disTo(road.b1()));
+							r2 = road instanceof CarRoad ? new CarRoad(cp,road.b2(),cp.disTo(road.b2())) : new BicycleRoad(cp,road.b2(),cp.disTo(road.b2()));
+							
+							r1.addNextRoad(r2);
+							
+							for(Road cRoad : lines) {
+								if(cRoad.nextRoad.indexOf(road) >= 0) {
+									cRoad.nextRoad.set(cRoad.nextRoad.indexOf(road), r1);
+								}
+							}
+							
+							r2.nextRoad.addAll(road.nextRoad);
+							r2.nextRoadProbability.addAll(road.nextRoadProbability);
+							
+							lines.remove(road);
+							lines.add(r2);
+							lines.add(r1);
+							
+							points.add(cp);
+							
+							i--;
+							size--;
+							size2++;
+						}
+					}
+				} else { // Add new road
+					// Determine closest Road
+					if(r.b2().disTo(road.b1()) < r.b2().disTo(bend)) {
+						bend = road.b1();
+						index = i;
+					}
+					
+					// Add Road
+					if (i == (size2 - 2)) {
+						newRoad = t ? new CarRoad(bend, r.b2(), bend.disTo(r.b2())) : new BicycleRoad(bend, r.b2(), bend.disTo(r.b2()));
+						r = new Road(r.b1(), bend, 1);
+						
+						newRoad.addNextRoad(lines.get(lines.size()-1));
+						
+						lines.add(newRoad);
+						
+						// Add Final Road
+						if((size+(size2-(size+2))/2+2) == size2) {
+							newRoad = t ? new CarRoad(r.b1(), bend, bend.disTo(r.b1())) : new BicycleRoad(r.b1(), bend, bend.disTo(r.b1()));
+							newRoad.addNextRoad(lines.get(lines.size()-1));
+							
+							for(Road cRoad : lines) {
+								if(cRoad.b2().equals(r.b1())) {
+									cRoad.addNextRoad(newRoad);
+								}
+							}
+							
+							lines.add(newRoad);
+							
+							i = lines.size();
+						} else {
+							s = lines.get(size);
+							lines.set(size,lines.get(index));
+							lines.set(index,s);
+							
+							i = size;
+							size += 2;
+							bend = new CrossoverPoint(r.b1().pos().X(), r.b1().pos().Y());
+						}
+					}
+					i++;
 				}
 			}
 			
-			double smallestT, smallestTS;
-			int startJ = 0, sTIndex, j = 0;
-			
-			Road smallestRoad;
-			
-			CrossoverPoint stBend;
-			
-			for(int i = 0; i < ts.size(); i++) {
-				smallestT = 1.1;
-				sTIndex = 0;
-				for(j = startJ; j < ts.size(); j++) {
-					if(ts.get(j)<smallestT) {
-						sTIndex = j;
-						smallestT = ts.get(j);
+			// Add roads if there are no intersections
+			if(size == lines.size()) {
+				newRoad = t ? new CarRoad(r.b1(), r.b2(), r.b2().disTo(r.b1())) : new BicycleRoad(r.b1(), r.b2(), r.b2().disTo(r.b1()));
+				
+				for(Road cRoad : lines) {
+					if(cRoad.b2().equals(r.b1())) {
+						cRoad.addNextRoad(newRoad);
 					}
 				}
-				smallestTS = ts.get(sTIndex);
-				smallestRoad = roads.get(sTIndex);
 				
-				ts.set(sTIndex, ts.get(startJ));
-				roads.set(sTIndex, roads.get(startJ));
-				
-				ts.set(startJ, smallestTS);
-				roads.set(startJ, smallestRoad);
-				
-				stBend = new CrossoverPoint(
-									cr.p1().pos().X() + smallestTS*
-									(cr.p2().pos().X() - cr.p1().pos().X()),
-								cr.p1().pos().Y()+smallestTS*
-									(cr.p2().pos().Y() - cr.p1().pos().Y())
-						);
-				
-				lines.remove(lines.indexOf(smallestRoad));
-				
-				if(CarRoad.class == smallestRoad.getClass()) {
-					lines.add(new CarRoad(smallestRoad.b1(),stBend,1));
-					lines.add(new CarRoad(smallestRoad.b2(),stBend,1));
-				} else if(BicycleRoad.class == smallestRoad.getClass()) {
-					lines.add(new BicycleRoad(smallestRoad.b1(),stBend,1));
-					lines.add(new BicycleRoad(smallestRoad.b2(),stBend,1));
-				} else if(CrossoverRoad.class == smallestRoad.getClass()) {
-					lines.add(new CrossoverRoad(smallestRoad.b1(),stBend,1));
-					lines.add(new CrossoverRoad(smallestRoad.b2(),stBend,1));
-				} else {
-					lines.add(new Road(smallestRoad.b1(),stBend,1));
-					lines.add(new Road(smallestRoad.b2(),stBend,1));
+				for(Road cRoad : lines) {
+					if(cRoad.b1().equals(b)) {
+						newRoad.addNextRoad(cRoad);
+					}
 				}
-					
 				
-				points.add(stBend);
-				lines.add(new CrossoverRoad(tb,stBend,1));
-				tb = stBend;
-				
-				startJ++;
+				lines.add(newRoad);
+			} else {
+				for(Road cRoad : lines) {
+					if(cRoad.b1().equals(b)) {
+						lines.get(size2).addNextRoad(cRoad);
+					}
+				}
 			}
-
-			lines.add(new CrossoverRoad(tb,SELECTED_POINT,1));
 			
+			points.add(SELECTED_POINT);
+			
+			// Reset to default in mode
 			SELECTED_POINT = null;
 			point_vectors[0] = null;
 			point_vectors[1] = null;
 			
 			refreshDisplay();
+		}
+	}
+	
+	private void addCrossover(Vector2d mouseV) {
+		if(SELECTED_POINT == null) {
+			// Create Clip on
+			SELECTED_POINT = new CrossoverPoint(mouseV.X(), mouseV.Y());
+			points.add(SELECTED_POINT);
 		} else {
-			if(tb == null) {
-				tb = new CrossoverPoint(mouseV.X(), mouseV.Y());
-				points.add(tb);
+			// Add new point if none selected
+			Bend b = new CrossoverPoint(mouseV.X(), mouseV.Y());
+			
+			Road r = new Road(SELECTED_POINT, b, 1);
+			
+			Bend bend = r.b1();
+			CrossoverPoint cp = null;
+			Road r1, r2, road, newRoad, s;
+			Vector2d intersection = null;
+			int size = lines.size(), size2 = lines.size(), index = 0;
+			
+			for(int i = 0; i < lines.size(); i++) {
+				road = lines.get(i);
+				
+				// Add Intersections
+				if(i < size) {
+					// Check if intersecting
+					intersection = r.getCrosspoint(road);
+					if(intersection != null) {
+						intersection = r.toIntersect(intersection);
+						// Check if not same point used
+						if(
+								intersection.difVector(r.b1().pos().v()).length() > Point.radius &&
+								intersection.difVector(r.b2().pos().v()).length() > Point.radius
+						   ) {
+							cp = new CrossoverPoint(intersection.X(), intersection.Y());
+							
+							// Split intersection roads in two
+							r1 = road instanceof CarRoad ? new CarRoad(road.b1(),cp,1) : new BicycleRoad(road.b1(),cp,1);
+							r2 = road instanceof CarRoad ? new CarRoad(cp,road.b2(),1) : new BicycleRoad(cp,road.b2(),1);
+							
+							r1.addNextRoad(r2);
+							
+							r2.nextRoad = road.nextRoad;
+							r2.nextRoadProbability = road.nextRoadProbability;
+							
+							lines.remove(road);
+							lines.add(r2);
+							lines.add(r1);
+							
+							//points.add(cp);
+							
+							i--;
+							size--;
+							size2++;
+						}
+					}
+				} else { // Add new road
+					// Determine closest Road
+					if(r.b2().disTo(road.b1()) < r.b2().disTo(bend)) {
+						bend = road.b1();
+						index = i;
+					}
+					
+					// Add Road
+					if (i == (size2 - 2)) {
+						newRoad = new CrossoverRoad(r.b1(), r.b2(), r.b2().disTo(r.b1()));
+						r = new Road(r.b1(), bend, 1);
+						
+						lines.add(newRoad);
+						
+						// Add Final Road
+						if((size+(size2-(size+2))/2+2) == size2) {
+							newRoad = new CrossoverRoad(r.b1(), r.b2(), r.b2().disTo(r.b1()));
+							lines.add(newRoad);
+							
+							i = lines.size();
+						} else {
+							s = lines.get(size);
+							lines.set(size,lines.get(index));
+							lines.set(index,s);
+							
+							i = size;
+							size += 2;
+							bend = new CrossoverPoint(r.b1().pos().X(), r.b1().pos().Y());
+						}
+					}
+					i++;
+				}
 			}
 			
-			SELECTED_POINT = tb;
+			// Add roads if there are no intersections
+			if(size == lines.size()) {
+				newRoad = new CrossoverRoad(r.b1(), r.b2(), r.b2().disTo(r.b1()));
+				lines.add(newRoad);
+			}
+			
+			points.add(b);
+			points.add(SELECTED_POINT);
+			
+			// Reset to default in mode
+			SELECTED_POINT = null;
+			refreshDisplay();
 		}
-		
-		refreshDisplay();
 	}
 	private void addText(Vector2d mouseV) {
 		if(clickedText) {
-			System.out.println("hi!");
 			Vector2d middleVector = point_vectors[0].sumVector(new Vector2d(textInputWidth, 0).getTransformRS(displayZoom));
 			
 			Vector2d v1 = new Vector2d(textInputWidth, 0).getTransformRS(displayZoom);
@@ -406,18 +519,61 @@ public class CSDisplay {
 				
 				lines.remove(lines.indexOf(smallestRoad));
 				
-				if(CarRoad.class == smallestRoad.getClass()) {
-					lines.add(new CarRoad(smallestRoad.b1(),stBend,1));
-					lines.add(new CarRoad(smallestRoad.b2(),stBend,1));
-				} else if(BicycleRoad.class == smallestRoad.getClass()) {
-					lines.add(new BicycleRoad(smallestRoad.b1(),stBend,1));
-					lines.add(new BicycleRoad(smallestRoad.b2(),stBend,1));
-				} else if(CrossoverRoad.class == smallestRoad.getClass()) {
-					lines.add(new CrossoverRoad(smallestRoad.b1(),stBend,1));
-					lines.add(new CrossoverRoad(smallestRoad.b2(),stBend,1));
+				
+				if(smallestRoad instanceof CarRoad) {
+					Road r1 = new CarRoad(smallestRoad.b1(),stBend,
+							smallestRoad.getWeight()*
+							(smallestRoad.b1().disTo(stBend))/
+							smallestRoad.b1().disTo(smallestRoad.b2()));
+					Road r2 = new CarRoad(stBend,smallestRoad.b2(),
+							smallestRoad.getWeight()*
+							(smallestRoad.b2().disTo(stBend))/
+							smallestRoad.b1().disTo(smallestRoad.b2()));
+					
+					r1.addNextRoad(r2);
+					r2.nextRoad = smallestRoad.nextRoad;
+					r2.nextRoadProbability = smallestRoad.nextRoadProbability;
+					
+					for(Integer rIndex : getRoadsWithBend(SELECTED_POINT)) {
+						if(lines.get(rIndex).b2().equals(SELECTED_POINT)) {
+							if(lines.get(rIndex).nextRoad.indexOf(smallestRoad) >= 0) {
+								lines.get(rIndex).nextRoad.set(lines.get(rIndex).nextRoad.indexOf(smallestRoad), r1);
+							}
+						}
+					}
+					
+					lines.add(r1);
+					lines.add(r2);
+				} else if(smallestRoad instanceof BicycleRoad) {
+					Road r1 = new BicycleRoad(smallestRoad.b1(),stBend,
+									smallestRoad.getWeight()*
+									(smallestRoad.b1().disTo(stBend))
+									/smallestRoad.b1().disTo(smallestRoad.b2()));
+					Road r2 = new BicycleRoad(stBend,smallestRoad.b2(),
+							smallestRoad.getWeight()*
+							(smallestRoad.b2().disTo(stBend))/
+							smallestRoad.b1().disTo(smallestRoad.b2()));
+					
+					r1.addNextRoad(r2);
+					r2.nextRoad = smallestRoad.nextRoad;
+					r2.nextRoadProbability = smallestRoad.nextRoadProbability;
+					
+					for(Integer rIndex : getRoadsWithBend(SELECTED_POINT)) {
+						if(lines.get(rIndex).b2().equals(SELECTED_POINT)) {
+							if(lines.get(rIndex).nextRoad.indexOf(smallestRoad) >= 0) {
+								lines.get(rIndex).nextRoad.set(lines.get(rIndex).nextRoad.indexOf(smallestRoad), r1);
+							}
+						}
+					}
+					
+					lines.add(r1);
+					lines.add(r2);
+				} else if(smallestRoad instanceof CrossoverRoad) {
+					lines.add(new CrossoverRoad(smallestRoad.b1(),stBend,smallestRoad.getWeight()));
+					lines.add(new CrossoverRoad(stBend,smallestRoad.b2(),smallestRoad.getWeight()));
 				} else {
-					lines.add(new Road(smallestRoad.b1(),stBend,1));
-					lines.add(new Road(smallestRoad.b2(),stBend,1));
+					lines.add(new Road(smallestRoad.b1(),stBend,smallestRoad.getWeight()));
+					lines.add(new Road(stBend,smallestRoad.b2(),smallestRoad.getWeight()));
 				}
 					
 				
@@ -456,7 +612,13 @@ public class CSDisplay {
 		
 		Vector2d mouseV = new Vector2d(CLICK_X,CLICK_Y).getTransformRS(displayZoom).sumVector(displayPosition);
 		if(e.getButton() == 1 && new Vector2d(CLICK_X, CLICK_Y).inRange(POS_X, POS_X+WIDTH, POS_Y, POS_Y+HEIGHT)) {
-			CLICK_DOWN = true;
+			if(weightEdit == null) {
+				CLICK_DOWN = true;
+			} else {
+				if(!weightEdit.editWeight(mouseV)) {
+					CLICK_DOWN = true;
+				}
+			}
 		}
 		
 		if(e.getButton() == 3) {
@@ -472,10 +634,10 @@ public class CSDisplay {
 				refreshDisplay();
 				break;
 			case 3: // Add Car Road
-				this.addRoad(1, mouseV);
+				this.addRoad(mouseV, true);
 				break;
 			case 4: // Add Bicycle Road
-				this.addRoad(2, mouseV);
+				this.addRoad(mouseV, false);
 				break;
 			case 5: // Add Traffic Light
 				this.addTrafficLight(mouseV);
@@ -538,33 +700,35 @@ public class CSDisplay {
 			refreshDisplay();
 		}
 	}
-	public void zoom(MouseWheelEvent e){
-		int c = e.getWheelRotation();
-		double newZoom = displayZoom + zoomConstant.X() * c / WIDTH;
-		
-		if(newZoom > 0.1 && newZoom < 4.0) {
-			/*
-			 * Mx = Mouse X in Pixels
-			 * My = Mouse Y in Pixels
-			 * WIDTH = Display Width in Pixels
-			 * HEIGHT = Display Height in Pixels
-			 * Px = X position of the display
-			 * Py = Y position of the display
-			 * Z = Factor of zoom in display
-			 * WZ = Amount of X zoom in Pixels
-			 * HZ = Amount of Y zoom in Pixels
-			 * C = -1 for zoom out / 1 for zoom in
-			 * 
-			 * Mouse Position (MP) : Vector ( Mx * Z + Px , My * Z + Py )
-			 * Relative Position (R) : Vector ( Mx / WIDTH , My / HEIGHT )
-			 * New Mouse Position (NM) : Vector ( Rx * ( ( WIDTH * Z ) + ( WZ * C ) ) , Ry * ( ( HEIGHT * Z ) + ( HZ * C ) ) )
-			 * New display position : MP - NM = P - ( ( M * F * C ) / D )
-			 */
+	public void zoom(MouseWheelEvent e) {
+		if(new Vector2d(e.getX(), e.getY()).inRange(POS_X, POS_X+WIDTH, POS_Y, POS_X+HEIGHT)) {
+			int c = e.getWheelRotation();
+			double newZoom = displayZoom + zoomConstant.X() * c / WIDTH;
 			
-			displayZoom = newZoom;
-			displayPosition = displayPosition.difVector(new Vector2d((e.getX() * zoomConstant.X() * c) / WIDTH, (e.getY() * zoomConstant.Y() * c) / HEIGHT));
-		
-			refreshDisplay();
+			if(newZoom > 0.1 && newZoom < 4.0) {
+				/*
+				 * Mx = Mouse X in Pixels
+				 * My = Mouse Y in Pixels
+				 * WIDTH = Display Width in Pixels
+				 * HEIGHT = Display Height in Pixels
+				 * Px = X position of the display
+				 * Py = Y position of the display
+				 * Z = Factor of zoom in display
+				 * WZ = Amount of X zoom in Pixels
+				 * HZ = Amount of Y zoom in Pixels
+				 * C = -1 for zoom out / 1 for zoom in
+				 * 
+				 * Mouse Position (MP) : Vector ( Mx * Z + Px , My * Z + Py )
+				 * Relative Position (R) : Vector ( Mx / WIDTH , My / HEIGHT )
+				 * New Mouse Position (NM) : Vector ( Rx * ( ( WIDTH * Z ) + ( WZ * C ) ) , Ry * ( ( HEIGHT * Z ) + ( HZ * C ) ) )
+				 * New display position : MP - NM = P - ( ( M * F * C ) / D )
+				 */
+				
+				displayZoom = newZoom;
+				displayPosition = displayPosition.difVector(new Vector2d((e.getX() * zoomConstant.X() * c) / WIDTH, (e.getY() * zoomConstant.Y() * c) / HEIGHT));
+			
+				refreshDisplay();
+			}
 		}
 	}
 	
@@ -622,6 +786,9 @@ public class CSDisplay {
 			for(Text t : textObjects) {
 				t.attemptToRender(g2d, displayZoom);
 			}
+			for(Road l : lines){
+				l.drawEditWeight(g2d);
+			}
 			
 			if(textInput != null) {
 				if(point_vectors[1] != null) {
@@ -649,17 +816,45 @@ public class CSDisplay {
 		}
 		if(PLAY_SIMULATION) {
 			for (Road r : lines) {
-				if(r.cars.size() != 0) {
+				if(r.vehicles.size() != 0) {
 					r.attemptToRender(g2d, displayZoom);
 					
 					r.b1().attemptToRender(g2d, displayZoom);
 					r.b2().attemptToRender(g2d, displayZoom);
 					
-					r.renderCars(g2d, displayZoom);
+					r.renderVehicles(g2d, displayZoom);
 					
 					g2d.setClip(new Rectangle(POS_X, POS_Y, WIDTH, HEIGHT));
 				}
 			}
 		}
+	}
+
+	public void spawnTick() {
+		if (PLAY_SIMULATION) {
+			for(Road r : lines) {
+				if(r instanceof CarRoad) {
+					CarRoad cr = (CarRoad) r;
+					cr.spawnTick();
+				} else if(r instanceof BicycleRoad) {
+					BicycleRoad cr = (BicycleRoad) r;
+					cr.spawnTick();
+				}
+			}
+			for(Bend b : points) {
+				if(b instanceof TrafficLight) {
+					((TrafficLight) b).trafficUpdate();
+				}
+			}
+		}
+	}
+
+	public static void calcFactor() {
+		double sum = 0;
+		for(double f : factors) {
+			sum += f;
+		}
+		
+		Line.convertFactor = sum / factors.size();
 	}
 }
