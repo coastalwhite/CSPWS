@@ -50,7 +50,7 @@ public class EditField {
 		
 		Image img = null;
 		try {
-			img = ImageIO.read(new File("img/" + imgPath));
+			img = ImageIO.read(new File("img" + CSControl.slash + imgPath));
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -82,6 +82,9 @@ public class EditField {
 				
 				drawStroke(g2d, "Cars per Second", Double.toString(b.carsPerSecond), 0);
 				drawStroke(g2d, "Bikes per Second", Double.toString(b.bikesPerSecond), 1);
+				
+
+				drawImgButton(g2d, "Priotity", "buttons" + CSControl.slash + "dice.png", 2);
 			}
 		} else if (o instanceof Road) {
 			/*
@@ -125,13 +128,27 @@ public class EditField {
 						}
 						break;
 					case 2:
-						
-						textInput = JOptionPane.showInputDialog(this 
-								 ,Double.toString(((TrafficLight) o).modeTime/1000));
-						
-						if (textInput != "") {
-							((TrafficLight) o).modeTime = (long) (Math.round(Double.parseDouble(textInput)*1000));
-							CSControl.refreshDisplay();
+						if(this.o instanceof TrafficLight) {
+							textInput = JOptionPane.showInputDialog(this 
+									 ,Double.toString(((TrafficLight) o).modeTime/1000));
+							
+							if (textInput != "") {
+								((TrafficLight) o).modeTime = (long) (Math.round(Double.parseDouble(textInput)*1000));
+								CSControl.refreshDisplay();
+							}
+						} else {
+							for(Road road : ((Bend) this.o).priorityList) {
+								if(road.color == Color.GREEN) {
+									road.color = Color.BLACK;
+									((Bend) this.o).priorityEdit = false;
+									CSDisplay.priorityEdit = null;
+								} else {
+									road.color = Color.GREEN;
+									((Bend) this.o).priorityEdit = true;
+									CSDisplay.priorityEdit = ((Bend) this.o);
+								}
+							}
+							CSDisplay.refreshDisplay();
 						}
 						break;
 					}

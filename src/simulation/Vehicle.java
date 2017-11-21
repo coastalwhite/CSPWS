@@ -85,7 +85,7 @@ public class Vehicle {
 			}
 		}
 		
-		if(r.b2() instanceof TrafficLight) {
+		if(r.b2() instanceof TrafficLight && !changed) {
 			if(((TrafficLight) r.b2()).mode == 0) {
 				double comfDis = Math.pow((this.speed), 2) / comfDec;
 				
@@ -99,8 +99,7 @@ public class Vehicle {
 				}
 			} else if (((TrafficLight) r.b2()).mode == 2) {
 				double comfDis = Math.pow((this.speed), 2) / comfDec;
-				
-				if(comfDis < (1 - this.progress) * r.weight() && (1 - this.progress) * r.weight() - comfDis < 7) {
+				if(((1 - this.progress) * r.weight()) > comfDis + 2 && ((1 - this.progress) * r.weight()) < comfDis + 4) {
 					changed = true;
 					if(speed-(comfDec/ScreenGraphics.ticksPerSecond) < 0) {
 						speed = 0;
@@ -111,7 +110,7 @@ public class Vehicle {
 			}
 		}
 		
-		if(r.b2() instanceof CrossoverPoint) {
+		if(r.b2() instanceof CrossoverPoint && !changed) {
 			double s = (1 - this.progress) * r.weight();
 			double t = s / this.speed;
 			
@@ -128,7 +127,7 @@ public class Vehicle {
 						vehicleTime = vehicleDistance / v.speed;
 						
 						if(vehicleTime < t+1 && vehicleTime > t-1) {
-							if(s >= vehicleDistance) {
+							if(nextRoad.b1().priorityList.indexOf(r) > nextRoad.b1().priorityList.indexOf(road)) {
 								changed = true;
 								if(speed-(comfDec/ScreenGraphics.ticksPerSecond) < 0) {
 									speed = 0;

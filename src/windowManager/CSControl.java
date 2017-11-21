@@ -33,8 +33,8 @@ public class CSControl {
 	
 	private static boolean displayChanged = true;
 	
+
 	public static String slash = "\\";
-	
 	public static EditField editField;
 	private static ArrayList<ModeButton> modebuttons = new ArrayList<ModeButton>();
 	

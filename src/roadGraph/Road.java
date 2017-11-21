@@ -20,6 +20,7 @@ public class Road extends Line {
 	
 	public ArrayList<Road> nextRoad;
 	public ArrayList<Double> nextRoadProbability;
+	
 	public ArrayList<Vehicle> vehicles;
 	public boolean hadCar = false;
 	
@@ -28,7 +29,6 @@ public class Road extends Line {
 	
 	public boolean weightEdit = false;
 	private ArrayList<Vector2d> textFields;
-	
 	public Road(Bend ip1, Bend ip2, double iWeight) {
 		super((Point) ip1, (Point) ip2);
 		
@@ -100,6 +100,7 @@ public class Road extends Line {
 		int randomNumber = random.nextInt(1000);
 		
 		int topLevel = 0;
+		
 		for(int i = 0; i < nextRoad.size(); i++) {
 			topLevel += nextRoadProbability.get(i)*1000;
 			if(randomNumber <= topLevel) {
@@ -162,6 +163,7 @@ public class Road extends Line {
 		
 		return null;
 	}
+	
 	public Vector2d toIntersect(Vector2d v) {
 		Vector2d v1 = new Vector2d(b1.pos().X(), b1.pos().Y());
 		Vector2d v2 = new Vector2d(b2.pos().X(), b2.pos().Y());
@@ -265,8 +267,9 @@ public class Road extends Line {
 					g2d.fillRect(posV1.INTX(), posV1.INTY(), posV2.difVector(posV1).INTX(), posV2.difVector(posV1).INTY());
 					g2d.setColor(Color.BLACK);
 					g2d.drawRect(posV1.INTX(), posV1.INTY(), posV2.difVector(posV1).INTX(), posV2.difVector(posV1).INTY());
-					
+
 					posV1 = CSDisplay.tSR(new Vector2d((r.b1.pos().X()+r.b2.pos().X())/2-38, (r.b1.pos().Y()+r.b2.pos().Y())/2+4));
+
 					g2d.drawString(Double.toString(this.nextRoadProbability.get(i)), posV1.INTX(), posV1.INTY());
 					
 					i++;
@@ -309,21 +312,29 @@ public class Road extends Line {
 	}
 
 	public void addNextRoad(Road r) {
-			if(nextRoad.size() == 0) {
-				nextRoad.add(r);
-				nextRoadProbability.add(1.0);
-			} else {
-				for(int i = 0; i < nextRoad.size(); i++) {
-					nextRoadProbability.set(i, nextRoadProbability.get(i)/2);
-				}
-				nextRoad.add(r);
-				nextRoadProbability.add(0.5);
+		if(nextRoad.size() == 0) {
+			nextRoad.add(r);
+			nextRoadProbability.add(1.0);
+		} else {
+			for(int i = 0; i < nextRoad.size(); i++) {
+				nextRoadProbability.set(i, nextRoadProbability.get(i)/2);
 			}
+			nextRoad.add(r);
+			nextRoadProbability.add(0.5);
+		}
+		
+		if(this.b2.priorityList.indexOf(this) < 0) {
+			this.b2.priorityList.add(this);
+		}
 	}
 	public void setB1(Bend b) {
 		b1 = b;
 	}
 	public void setB2(Bend b) {
 		b2 = b;
+	}
+	
+	public boolean doDisplay() {
+		return doDisplay;
 	}
 }
