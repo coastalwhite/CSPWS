@@ -33,10 +33,11 @@ public class CSControl {
 	
 	private static boolean displayChanged = true;
 	
+	public static int rowDim = 55;
 
 	public static String slash = "\\";
 	public static EditField editField;
-	private static ArrayList<ModeButton> modebuttons = new ArrayList<ModeButton>();
+	public static ArrayList<ModeButton> modebuttons = new ArrayList<ModeButton>();
 	
 	public CSControl() {
 		String osName = System.getProperty("os.name").toLowerCase();
@@ -53,8 +54,6 @@ public class CSControl {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		
-		int rowDim = 55;
 		
 		/*
 		 * -6 = Start Simulation
@@ -107,18 +106,6 @@ public class CSControl {
 		displayChanged = true;
 	}
 	
-	private static int findIndex(ArrayList<Coord> coords, Coord c) {
-		int i = 0;
-		for(Coord p : coords) {
-			if(p.X() == c.X() && p.Y() == c.Y()) {
-				return i;
-			}
-			i++;
-		}
-		
-		return -1;
-	}
-	
 	public static void loadState(String path) throws IOException {
 		String s = new String(Files.readAllBytes(Paths.get(path)));
 		String[] split = s.split(">");
@@ -134,25 +121,22 @@ public class CSControl {
 		Bend b;
 		
 		ArrayList<String> nextRoadStrings = new ArrayList<String>();
+		ArrayList<String> priorityListStrings = new ArrayList<String>();
+		
+		int bendAmount = 0;
 		
 		for(int i = 0; i < split.length; i++) {
 			split[i] = split[i].replace('<', '0');
 			prop = split[i].split(",");
 			
 			switch(prop[1]) {
-			case "Point": // <#ID,Point,Type,#X,#Y,CarsPerSecond,BikesPerSecond>
+			case "Point": // <#ID,Point,Type,#X,#Y,{Priority},CarsPerSecond,BikesPerSecond>
+				priorityListStrings.add(prop[5]);
+				
 				switch (prop[2]) {
-				case "Type1":
-					b = new Bend(Double.parseDouble(prop[3]), Double.parseDouble(prop[4]));
-					if(prop.length > 5) {
-						b.carsPerSecond = Double.parseDouble(prop[5]);
-						b.bikesPerSecond = Double.parseDouble(prop[6]);
-					}
-					bends.add(b);
-					break;
 				case "Type2":
 					b = new TrafficLight(Double.parseDouble(prop[3]), Double.parseDouble(prop[4]));
-					((TrafficLight) b).modeTime = Long.parseLong(prop[5]);
+					((TrafficLight) b).modeTime = Long.parseLong(prop[6]);
 					bends.add(b);
 					break;
 				case "Type3":
@@ -162,32 +146,37 @@ public class CSControl {
 				default:
 					b = new Bend(Double.parseDouble(prop[3]), Double.parseDouble(prop[4]));
 					if(prop.length > 5) {
-						b.carsPerSecond = Double.parseDouble(prop[5]);
-						b.bikesPerSecond = Double.parseDouble(prop[6]);
+						b.carsPerSecond = Double.parseDouble(prop[6]);
+						b.bikesPerSecond = Double.parseDouble(prop[7]);
 					}
 					bends.add(b);
 					break;
 				}
+				
+				bendAmount++;
 				break;
 			case "Line": // <#ID,Line,Type,#PointID1,#PointID2, Weight, NextRoads>
 				switch (prop[2]) {
 				case "Type1":
 					r = new CarRoad(bends.get(Integer.parseInt(prop[3])-1), bends.get(Integer.parseInt(prop[4])-1), Double.parseDouble(prop[5]));
 					roads.add(r);
+					
 					nextRoadStrings.add(prop[6]);
+					
 					break;
 				case "Type2":
 					r = new BicycleRoad(bends.get(Integer.parseInt(prop[3])-1), bends.get(Integer.parseInt(prop[4])-1), Double.parseDouble(prop[5]));
 					roads.add(r);
+					
 					nextRoadStrings.add(prop[6]);
+					
 					break;
 				case "Type3":
 					r = new CrossoverRoad(bends.get(Integer.parseInt(prop[3])-1), bends.get(Integer.parseInt(prop[4])-1), Double.parseDouble(prop[5]));
 					roads.add(r);
-					break;
-				default:
-					r = new Road(bends.get(Integer.parseInt(prop[3])-1), bends.get(Integer.parseInt(prop[4])-1), Double.parseDouble(prop[5]));
-					roads.add(r);
+					
+					nextRoadStrings.add(prop[6]);
+					
 					break;
 				}	
 				break;
@@ -214,6 +203,18 @@ public class CSControl {
 			j++;
 		}
 		
+		j = 0;
+		for(String str : priorityListStrings) {
+			str = str.replace('{', ' ').replace('}', ' ');
+			if(str.length() != 2) {
+				list = str.split(";");
+				for(String rstr : list) {
+					bends.get(j).priorityList.add(roads.get(Integer.parseInt(rstr.trim())-bendAmount-1));
+				}
+			}
+			j++;
+		}
+		
 		CSDisplay.lines = roads;
 		CSDisplay.points = bends;
 		CSDisplay.textObjects = texts;
@@ -225,34 +226,57 @@ public class CSControl {
 		int i = 0;
 		
 		ArrayList<Coord> coords = new ArrayList<Coord>();
+		ArrayList<String> strings = new ArrayList<String>();
+		String type, str;
 		
 		for(Bend b : CSDisplay.points) {
 			i++;
 			coords.add(b.pos());
 			
-			String type = "Type0";
+			type = "Type0";
+			str = "-";
 			
-			if(b instanceof TrafficLight) {
-				type = "Type2";
-				writer.println("<" + Integer.toString(i) + ",Point," + type + "," + Double.toString(b.pos().X()) + "," + Double.toString(b.pos().Y()) + "," + Long.toString(((TrafficLight) b).modeTime) + ">");
-			} else if(b instanceof CrossoverPoint) {
+			if(b instanceof CrossoverPoint) {
 				type = "Type3";
-				writer.println("<" + Integer.toString(i) + ",Point," + type + "," + Double.toString(b.pos().X()) + "," + Double.toString(b.pos().Y()) + "," + Double.toString(b.carsPerSecond) + "," + Double.toString(b.bikesPerSecond) + ">");
+			} else if(b instanceof TrafficLight) {
+				type = "Type2";
+				str = Long.toString(((TrafficLight) b).modeTime);
 			} else {
 				type = "Type1";
-				writer.println("<" + Integer.toString(i) + ",Point," + type + "," + Double.toString(b.pos().X()) + "," + Double.toString(b.pos().Y()) + "," + Double.toString(b.carsPerSecond) + "," + Double.toString(b.bikesPerSecond) + ">");
+				str = Double.toString(b.carsPerSecond) + "," + Double.toString(b.bikesPerSecond);
 			}
+			
+			str = "<" + Integer.toString(i) + ",Point," + type + "," + Double.toString(b.pos().X()) + "," + Double.toString(b.pos().Y()) + ",#," + str + ">";
+		
+			strings.add(str);
 		}
 		
 		int bendAmount = i;
 		int b1, b2;
+		
+		int j = 0;
+		int k;
+		for(String s : strings) {
+			str = "{";
+			k = 0;
+			for(Road r : CSDisplay.points.get(j).priorityList) {
+				str += Integer.toString(CSDisplay.lines.indexOf(r) + bendAmount + 1);
+				str += (++k == CSDisplay.points.get(j).priorityList.size()) ? "" : ";";
+			}
+			str += "}";
+			
+			s = s.replace("#", str);
+			writer.println(s);
+			j++;
+		}
+		
 		for(Road r : CSDisplay.lines) {
 			i++;
 			
-			b1 = findIndex(coords, r.p1().pos());
-			b2 = findIndex(coords, r.p2().pos());
+			b1 = coords.indexOf(r.p1().pos());
+			b2 = coords.indexOf(r.p2().pos());
 			
-			String type = "Type0";
+			type = "Type0";
 			
 			if(r.getClass() == CarRoad.class) {
 				type = "Type1";
@@ -261,22 +285,28 @@ public class CSControl {
 			} else if(r.getClass() == CrossoverRoad.class) {
 				type = "Type3";
 			}
-			writer.print("<" + Integer.toString(i) + ",Line," + type + "," + Integer.toString(b1+1) + "," + Integer.toString(b2+1) + "," + Double.toString(r.weight()) + ",{");
-			int j = 0;
+			
+			str = "<" + Integer.toString(i) + ",Line," + type + "," + Integer.toString(b1+1) + "," + Integer.toString(b2+1) + "," + Double.toString(r.weight()) + ",{";
+			j = 0;
 			for(Road nr : r.nextRoad) {
-				writer.print(Integer.toString(CSDisplay.lines.indexOf(nr)+bendAmount+1) + ":" + Double.toString(r.nextRoadProbability.get(j)));
+				str += Integer.toString(CSDisplay.lines.indexOf(nr)+bendAmount+1) + ":" + Double.toString(r.nextRoadProbability.get(j));
 				
 				j++;
 				if(j != r.nextRoad.size()) {
-					writer.print(";");
+					str += ";";
 				}
 			}
-			writer.println("}>");
+			str += "}>";
+			
+			writer.println(str);
 		}
+		
 		for(Text t : CSDisplay.textObjects) {
 			i++;
 			
-			writer.println("<" + Integer.toString(i) + ",Text,Type1," + Double.toString(t.X()) + "," + Double.toString(t.Y()) + "," + Double.toString(t.Angle()) + "," + t.text + ">");
+			str = "<" + Integer.toString(i) + ",Text,Type1," + Double.toString(t.X()) + "," + Double.toString(t.Y()) + "," + Double.toString(t.Angle()) + "," + t.text + ">";
+			
+			writer.println(str);
 		}
 		
 		writer.close();
@@ -315,8 +345,8 @@ public class CSControl {
 		for(Road r : roads) {
 			i++;
 			
-			b1 = findIndex(coords, r.p1().pos());
-			b2 = findIndex(coords, r.p2().pos());
+			b1 = coords.indexOf(r.p1().pos());
+			b2 = coords.indexOf(r.p2().pos());
 			
 			String type = "Type0";
 			

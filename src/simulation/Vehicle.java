@@ -3,7 +3,9 @@ package simulation;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.Polygon;
+import java.awt.Rectangle;
 import java.util.ArrayList;
+import java.util.Random;
 
 import graphCore.Line;
 import graphics.ScreenGraphics;
@@ -14,7 +16,7 @@ import roadGraph.Vector2d;
 import windowManager.CSDisplay;
 
 public class Vehicle {
-	protected double prefSpeed = 0.0f;
+	public double prefSpeed = 0.0f;
 	public double speed = 30.0f; // m / s
 	protected double progress = 0.0f; // %
 	
@@ -25,6 +27,11 @@ public class Vehicle {
 	public Road nextRoad = null;
 	
 	protected static double comfDec = 5.7;
+	protected double safeDis = 5;
+	
+	public  boolean ufCarsChanged = false,
+					ufTLChanged = false,
+					ufCPChanged = false;
 	
 	protected double colAcc = 0.0;
 	protected Vehicle colVeh = null;
@@ -35,21 +42,64 @@ public class Vehicle {
 	protected Color color = Color.GREEN;
 	
 	public Vehicle(double pSpeed) {
-		this.prefSpeed = pSpeed;
+		Random r = new Random();
+		this.prefSpeed = Math.round(r.nextGaussian()*2+30);
 		this.speed = pSpeed;
 	}
 	
-	public boolean updateProgress(Road r) {
-		/*
-		 * P = Progress of the car on the road in percent
-		 * V = Velocity of the car
-		 * W = Weight / Length of the road
-		 * T = Seconds passed
-		 * 
-		 * P += ( W / V ) / T
-		 * 
-		 */
+	public boolean isIn(Vector2d v, Road r) {
+		Vector2d v1 = CSDisplay.tSR(r.b1().pos().v());
+		Vector2d v2 = CSDisplay.tSR(r.b2().pos().v());
 		
+		Vector2d difVector = v2.difVector(v1);
+		
+		double c = difVector.Y() / difVector.X();
+		Vector2d carYOffset = new Vector2d(
+											( -1 * Math.pow(CSDisplay.displayZoom(), -1) * ((WIDTH * Math.pow(Line.convertFactor, -1)) / 2) * c / Math.sqrt(c*c + 1) ),
+											Math.pow(CSDisplay.displayZoom(), -1) * ((WIDTH * Math.pow(Line.convertFactor, -1)) / 2) / Math.sqrt(c*c + 1)
+										);
+		Vector2d yOffset = new Vector2d(
+				( -1 * Math.pow(CSDisplay.displayZoom(), -1) * (Road.lineWidth / 2) * c / Math.sqrt(c*c + 1) ),
+				Math.pow(CSDisplay.displayZoom(), -1) * (Road.lineWidth / 2) / Math.sqrt(c*c + 1)
+			);
+		
+		Vector2d progressVector = new Vector2d ( progress * difVector.X(), progress * difVector.Y() ).sumVector(v1);
+		Vector2d carLength = new Vector2d (
+											Math.pow(CSDisplay.displayZoom(), -1) * (LENGTH * Math.pow(Line.convertFactor, -1)) / Math.sqrt(c*c + 1),
+											Math.pow(CSDisplay.displayZoom(), -1) * (LENGTH * Math.pow(Line.convertFactor, -1)) * c / Math.sqrt(c*c + 1) 
+										   );
+		
+		Vector2d [] carVectors = {
+					progressVector.difVector(carLength).difVector(carYOffset),
+					progressVector.difVector(carLength).sumVector(carYOffset),
+					progressVector.sumVector(carYOffset),
+					progressVector.difVector(carYOffset)
+		};
+			
+		int [] xPoints = new int[4];
+		int [] yPoints = new int[4];
+		
+		v.pr("v");
+		
+		int i = 0;
+		for(Vector2d s : carVectors) {
+			s = s.getTransformRS(CSDisplay.displayZoom()).sumVector(CSDisplay.displayPosition());
+			s.pr("s"+ Integer.toString(i));
+			xPoints[i] = s.INTX();
+			yPoints[i] = s.INTY();
+			i++;
+		}
+		
+		int crossingNumber = 0;
+		
+		
+		for(int j = 0; j <= 4; j++) {
+			crossingNumber += Road.isCrossing(new Vector2d(xPoints[j%4], yPoints[j%4]), new Vector2d(xPoints[(j+1)%4], yPoints[(j+1)%4]), v, new Vector2d(Math.pow(2, 60), v.Y())) ? 1 : 0;
+		}
+		return crossingNumber % 2 == 1;
+	}
+	
+	protected boolean ufCars(Road r) {
 		ArrayList<Vehicle> veh = new ArrayList<Vehicle>();
 		veh.addAll(r.vehicles);
 		if(this.nextRoad != null) {
@@ -81,15 +131,20 @@ public class Vehicle {
 				if (colVeh.speed > colAcc) {
 					colVeh = null;
 					speedUp = true;
+				} else {
+					changed = true;
 				}
 			}
 		}
-		
+		return changed;
+	}
+	protected boolean ufTrafficLight(Road r) {
+		boolean changed = false;
 		if(r.b2() instanceof TrafficLight && !changed) {
 			if(((TrafficLight) r.b2()).mode == 0) {
 				double comfDis = Math.pow((this.speed), 2) / comfDec;
 				
-				if(comfDis + 5 > (1 - this.progress) * r.weight()) {
+				if(comfDis + safeDis > (1 - this.progress) * r.weight()) {
 					changed = true;
 					if(speed-(comfDec/ScreenGraphics.ticksPerSecond) < 0) {
 						speed = 0;
@@ -109,10 +164,13 @@ public class Vehicle {
 				}
 			}
 		}
-		
-		if(r.b2() instanceof CrossoverPoint && !changed) {
+		return changed;
+	}
+	protected boolean ufCrosspoint(Road r) {
+		boolean changed = false;
+		if(r.b2().priorityList.size() > 1 && !changed) {
 			double s = (1 - this.progress) * r.weight();
-			double t = s / this.speed;
+			double t = s / this.prefSpeed;
 			
 			double vehicleDistance, vehicleTime;
 			
@@ -126,10 +184,12 @@ public class Vehicle {
 						vehicleDistance = (1 - v.progress) * road.weight();
 						vehicleTime = vehicleDistance / v.speed;
 						
-						if(vehicleTime < t+1 && vehicleTime > t-1) {
-							if(nextRoad.b1().priorityList.indexOf(r) > nextRoad.b1().priorityList.indexOf(road)) {
+						double comfDis = Math.pow((this.speed), 2) / comfDec;
+						
+						if(vehicleTime < t+1 && vehicleTime > t-1 && nextRoad.b1().priorityList.indexOf(r) > nextRoad.b1().priorityList.indexOf(road)) {
+							if(comfDis + safeDis > (1 - this.progress) * r.weight()) {
 								changed = true;
-								if(speed-(comfDec/ScreenGraphics.ticksPerSecond) < 0) {
+								if(speed-(comfDec/ScreenGraphics.ticksPerSecond) <= 0) {
 									speed = 0;
 								} else {
 									speed -= (comfDec/ScreenGraphics.ticksPerSecond);
@@ -141,8 +201,27 @@ public class Vehicle {
 				}
 			}
 		}
+		return changed;
+	}
+	
+	public boolean updateProgress(Road r) {
+		/*
+		 * P = Progress of the car on the road in percent
+		 * V = Velocity of the car
+		 * W = Weight / Length of the road
+		 * T = Seconds passed
+		 * 
+		 * P += ( W / V ) / T
+		 * 
+		 */
 		
-		if(colVeh == null && !changed) {
+		boolean changed = false;
+		
+		changed = changed ? true : (ufCarsChanged = ufCars(r));
+		changed = changed ? true : (ufTLChanged = ufTrafficLight(r));
+		changed = changed ? true : (ufCPChanged = ufCrosspoint(r));
+		
+		if(!changed) {
 			speedUp = true;
 		}
 		
@@ -179,6 +258,7 @@ public class Vehicle {
 		}
 	}
 	public final void draw (Graphics2D g2d, Road r, double displayZoom) {
+		
 		Vector2d v1 = CSDisplay.tSR(r.b1().pos().v());
 		Vector2d v2 = CSDisplay.tSR(r.b2().pos().v());
 		
@@ -219,7 +299,7 @@ public class Vehicle {
 		
 		int i = 0;
 		for(Vector2d v : lineVectors) {
-			xPoints[i] = v.INTX();
+			xPoints[i] = v.INTX() > CSDisplay.POS_X+CSDisplay.WIDTH ? CSDisplay.POS_X+CSDisplay.WIDTH : v.INTX();
 			yPoints[i] = v.INTY();
 			i++;
 		}

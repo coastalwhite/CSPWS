@@ -1,30 +1,49 @@
 package roadGraph;
 
 import java.awt.Color;
+import java.util.Random;
 
 import simulation.Car;
 import simulation.Vehicle;
 
 public class CarRoad extends Road {
 
-	private int i = 0;
+	private double carSpawnTime = 0;
+	private int spawnTicksPerSec = 100;
 	
 	public CarRoad(Bend ip1, Bend ip2, double iWeight) {
 		super(ip1, ip2, iWeight);
 		
 		color = Color.BLACK;
+		
+	}
+	
+	public int randomBinom(double prob) {
+		if(prob <= 0 && prob >= 1) {
+			return 0;
+		}
+		Random r = new Random();
+		
+		for(int i = 1; i <= 1000; i++) {
+			if(r.nextInt(1000)<=prob*1000) {
+				return i;
+			}
+		}
+		return 1000;
 	}
 
 	public void spawnTick() {
 		if(this.b1.carsPerSecond > 0) {
 			long nanoTime = System.nanoTime();
 			if(prevTime == 0) {
+				carSpawnTime = randomBinom(b1.carsPerSecond/spawnTicksPerSec) * (Math.pow(10,  9) / spawnTicksPerSec);
 				prevTime = nanoTime; 
 			}
+			carSpawnTime = carSpawnTime > 20 * (Math.pow(10,  9) / spawnTicksPerSec) ? carSpawnTime : 20 * (Math.pow(10,  9) / spawnTicksPerSec);
 			
 			timePassed += (nanoTime - prevTime);
-			if (timePassed / Math.pow(10, 9) >= (1/b1.carsPerSecond)) {
-				timePassed -= (1/b1.carsPerSecond) * Math.pow(10, 9);
+			if (timePassed >= carSpawnTime) {
+				timePassed = 0;
 				if(vehicles.size() == 0) {
 					this.addVehicle(new Car(30.0));
 				} else {
@@ -33,7 +52,7 @@ public class CarRoad extends Road {
 						this.addVehicle(new Car(30.0));
 					}
 				}
-				i++;
+				carSpawnTime = (Math.pow(10, 9) / spawnTicksPerSec) * randomBinom(b1.carsPerSecond/spawnTicksPerSec);
 			}
 			
 			prevTime = nanoTime;

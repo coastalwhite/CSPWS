@@ -63,6 +63,7 @@ public class CSDisplay {
 	
 	// Simulation Settings
 	public static boolean PLAY_SIMULATION       =                        false;
+	public static boolean PAUSE                 =                        false;
 	public static Road weightEdit               =                         null;
 	public static Bend priorityEdit             =                         null;
 	
@@ -87,6 +88,9 @@ public class CSDisplay {
 	
 	public static double displayZoom() {
 		return displayZoom;
+	}
+	public static Vector2d displayPosition() {
+		return displayPosition;
 	}
 	
 	public static void refreshDisplay() {
@@ -128,9 +132,18 @@ public class CSDisplay {
 		/*
 		 * http://www.geeksforgeeks.org/how-to-check-if-a-given-point-lies-inside-a-polygon/
 		 */
+		
+		boolean x = true;
 		for(Road r : lines) {
 			if(r.isIn(v)){
-				return r;
+				for(Vehicle c : r.vehicles) {
+					System.out.println("hi!");
+					if(c.isIn(v,r)) {
+						x = false;
+						return c;
+					}
+				}
+				if (x) { return r; } 
 			}
 		}
 		
@@ -260,7 +273,9 @@ public class CSDisplay {
 						newRoad = t ? new CarRoad(bend, r.b2(), bend.disTo(r.b2())) : new BicycleRoad(bend, r.b2(), bend.disTo(r.b2()));
 						r = new Road(r.b1(), bend, 1);
 						
-						newRoad.addNextRoad(lines.get(lines.size()-1));
+						if (i > size) {
+							newRoad.addNextRoad(lines.get(lines.size()-1));
+						}
 						
 						lines.add(newRoad);
 						
@@ -317,8 +332,6 @@ public class CSDisplay {
 					}
 				}
 			}
-			
-			points.add(SELECTED_POINT);
 			
 			// Reset to default in mode
 			SELECTED_POINT = null;
@@ -675,7 +688,7 @@ public class CSDisplay {
 	}
 	
 	public void tick() { // LOOP FUNCTION
-		if (PLAY_SIMULATION) {
+		if (PLAY_SIMULATION && !PAUSE) {
 			for(Road r : lines) {
 				r.tick();
 			}
@@ -721,9 +734,10 @@ public class CSDisplay {
 					new CrossoverRoad(SELECTED_POINT, new Bend(point_vectors[1].X(), point_vectors[1].Y()), 1).attemptToRender(g2d, displayZoom);
 				}
 			}
-			
-			for(Bend p : points){
-				p.attemptToRender(g2d, displayZoom);
+			if(CSControl.EDIT_MODE) {
+				for(Bend p : points){
+					p.attemptToRender(g2d, displayZoom);
+				}
 			}
 			for(Text t : textObjects) {
 				t.attemptToRender(g2d, displayZoom);
@@ -764,8 +778,8 @@ public class CSDisplay {
 				if(r.vehicles.size() != 0) {
 					r.attemptToRender(g2d, displayZoom);
 					
-					r.b1().attemptToRender(g2d, displayZoom);
-					r.b2().attemptToRender(g2d, displayZoom);
+					//r.b1().attemptToRender(g2d, displayZoom);
+					//r.b2().attemptToRender(g2d, displayZoom);
 					
 					r.renderVehicles(g2d, displayZoom);
 					

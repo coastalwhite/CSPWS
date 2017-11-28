@@ -11,6 +11,8 @@ import javax.imageio.ImageIO;
 import javax.swing.JOptionPane;
 
 import roadGraph.*;
+import simulation.Car;
+import simulation.Vehicle;
 
 public class EditField {
 	private Object o = null;
@@ -84,7 +86,7 @@ public class EditField {
 				drawStroke(g2d, "Bikes per Second", Double.toString(b.bikesPerSecond), 1);
 				
 
-				drawImgButton(g2d, "Priotity", "buttons" + CSControl.slash + "dice.png", 2);
+				drawImgButton(g2d, "Priority", "buttons" + CSControl.slash + "dice.png", 2);
 			}
 		} else if (o instanceof Road) {
 			/*
@@ -99,6 +101,17 @@ public class EditField {
 			drawButton(g2d, "switchDirection", 0);
 			drawStroke(g2d, "Real world length", Double.toString(r.convertFactor * r.length()), 1);
 			drawImgButton(g2d, "Progression", "buttons" + CSControl.slash + "dice.png", 2);
+		} else if (o instanceof Vehicle) {
+			Vehicle v = (Vehicle) o;
+			
+			g2d.setFont(new Font("sansserif", Font.BOLD, 16));
+			
+			drawStroke(g2d, "Speed", Double.toString(v.speed), 0);
+			drawStroke(g2d, "prefSpeed", Double.toString(v.prefSpeed), 1);
+			
+			drawStroke(g2d, "Stopping for slower Vehicle", Boolean.toString(v.ufCarsChanged), 3);
+			drawStroke(g2d, "Stopping for Traffic Light", Boolean.toString(v.ufTLChanged), 4);
+			drawStroke(g2d, "Stopping for Crossing point", Boolean.toString(v.ufCPChanged), 5);
 		}
 	}
 	

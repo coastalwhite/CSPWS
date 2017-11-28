@@ -20,7 +20,6 @@ public class BicycleRoad extends Road {
 			if(prevTime == 0) {
 				prevTime = nanoTime; 
 			}
-			System.out.print("hi!");
 			
 			timePassed += (nanoTime - prevTime);
 			if (timePassed / Math.pow(10, 9) >= (1/b1.bikesPerSecond)) {

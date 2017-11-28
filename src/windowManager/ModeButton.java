@@ -67,12 +67,15 @@ public class ModeButton {
 				}
 				break;
 			case -1: // Edit Button
-				if(!buttonsDisabled) {
+				if(!CSDisplay.PLAY_SIMULATION) {
 					CSControl.EDIT_MODE = CSControl.EDIT_MODE ? false : true;
 					CSControl.MODE = -1;
 					this.innerColor = CSControl.EDIT_MODE ? selectedColor : idleColor;
 				} else {
-					doClick = false;
+					this.imagePath = "Start.png";
+					CSDisplay.PLAY_SIMULATION = false;
+					CSDisplay.PAUSE = false;
+					CSControl.modebuttons.set(0, new ModeButton(CSControl.POS_X+10+0*CSControl.rowDim, CSControl.POS_Y+10+0*CSControl.rowDim, -1, "Potlood.png"));
 				}
 				break;
 			case -2: // Save Button
@@ -136,15 +139,15 @@ public class ModeButton {
 				CSDisplay.resetState();
 				break;
 			case -6: // Start / Stop playing simulation
-				if(CSDisplay.PLAY_SIMULATION) {
+				if(!CSDisplay.PAUSE) {
 					this.imagePath = "Start.png";
-					CSDisplay.PLAY_SIMULATION = false;
-					buttonsDisabled = false;
+					CSDisplay.PAUSE = true;
 				} else {
-					buttonsDisabled = true;
 					CSControl.EDIT_MODE = false;
-					this.imagePath = "Stop.png";
+					CSControl.modebuttons.set(0, new ModeButton(CSControl.POS_X+10+0*CSControl.rowDim, CSControl.POS_Y+10+0*CSControl.rowDim, -1, "Stop.png"));
+					this.imagePath = "Pause.png";
 					CSDisplay.PLAY_SIMULATION = true;
+					CSDisplay.PAUSE = false;
 				}
 			default:
 				CSDisplay.MODE = this.MODE;
