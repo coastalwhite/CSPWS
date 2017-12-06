@@ -79,12 +79,9 @@ public class Vehicle {
 		int [] xPoints = new int[4];
 		int [] yPoints = new int[4];
 		
-		v.pr("v");
-		
 		int i = 0;
 		for(Vector2d s : carVectors) {
-			s = s.getTransformRS(CSDisplay.displayZoom()).sumVector(CSDisplay.displayPosition());
-			s.pr("s"+ Integer.toString(i));
+			s = s.getTransformRS(CSDisplay.displayZoom()).sumVector(CSDisplay.displayPosition()); 
 			xPoints[i] = s.INTX();
 			yPoints[i] = s.INTY();
 			i++;
