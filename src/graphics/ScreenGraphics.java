@@ -28,7 +28,7 @@ public class ScreenGraphics extends JPanel implements Runnable, MouseListener, M
 	public long nanoTime = 0;
 	public byte displayWarmUp = 3;
 	
-	public static double ticksPerSecond = 100;
+	public static double ticksPerSecond = 1000;
 	
 	public CSDisplay csdisplay;
 	public CSControl cscontrol;
@@ -51,6 +51,7 @@ public class ScreenGraphics extends JPanel implements Runnable, MouseListener, M
 	
 	@Override
 	public void run() {
+		// Create loop
 		while(running){
 			repaint();
 			tick();
@@ -67,20 +68,28 @@ public class ScreenGraphics extends JPanel implements Runnable, MouseListener, M
 	public void paint(Graphics g){
 		Graphics2D g2d = (Graphics2D) g;
 		
+		// Warm up to create instant view
 		if(displayWarmUp != 0) { CSDisplay.refreshDisplay(); CSControl.refreshDisplay(); displayWarmUp--; }
+		
+		// Draw two sides
 		cscontrol.draw(g2d);
 		csdisplay.draw(g2d);
 	}
 	
 	public void tick(){
-		if (System.nanoTime() - nanoTime >= Math.pow(10, 9) / ticksPerSecond) {
+		// Timed updates
+		if (System.nanoTime() - nanoTime >= Math.pow(10, 9) / (ticksPerSecond) ) {
 			nanoTime = System.nanoTime();
 			csdisplay.tick();
 			cscontrol.tick();
 		}
+		
+		// Spawing updates
 		csdisplay.spawnTick();
+		CSDisplay.collectData();
 	}
 
+	// Events
 	@Override
 	public void mouseClicked(MouseEvent e) {
 		cscontrol.mouseClick(e);
@@ -98,7 +107,6 @@ public class ScreenGraphics extends JPanel implements Runnable, MouseListener, M
 
 	@Override
 	public void mouseEntered(MouseEvent e) {}
-
 	@Override
 	public void mouseExited(MouseEvent e) {}
 

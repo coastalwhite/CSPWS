@@ -9,18 +9,16 @@ import java.awt.Rectangle;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseWheelEvent;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.ArrayList;
-import java.util.Arrays;
-
 import javax.imageio.ImageIO;
 
-import graphCore.Line;
-import graphCore.Point;
-import graphics.MainWindow;
+import graphCore.*;
+import graphics.*;
 import roadGraph.*;
-import simulation.Car;
-import simulation.Vehicle;
+import simulation.*;
 
 public class CSDisplay {
 	
@@ -63,9 +61,13 @@ public class CSDisplay {
 	
 	// Simulation Settings
 	public static boolean PLAY_SIMULATION       =                        false;
-	public static boolean PAUSE                 =                        false;
+	public static boolean PAUSE                 =                         true;
 	public static Road weightEdit               =                         null;
 	public static Bend priorityEdit             =                         null;
+	
+	// Data Collection
+	public static float collectSeconds 			=	 						 1;
+	public static long nanoTime                 =							 0;
 	
 	// Non Static
 	private boolean clickedText = false;
@@ -106,6 +108,22 @@ public class CSDisplay {
 		
 		refreshDisplay();
 	}
+	public static void resetEdit() {
+		if(priorityEdit != null) {
+			priorityEdit.priorityEdit = false;
+			for(Road r : priorityEdit.priorityList) {
+				r.color = r.defaultColor;
+			}
+			priorityEdit = null;
+		}
+		if(weightEdit != null) {
+			weightEdit.weightEdit = false;
+			for(Road r : weightEdit.nextRoad) {
+				r.color = r.defaultColor;
+			}
+			weightEdit = null;
+		}
+	}
 	
 	public static Vector2d tSR(Vector2d v) {
 		return v.difVector(displayPosition).getTransformSR(displayZoom);
@@ -133,17 +151,15 @@ public class CSDisplay {
 		 * http://www.geeksforgeeks.org/how-to-check-if-a-given-point-lies-inside-a-polygon/
 		 */
 		
-		boolean x = true;
 		for(Road r : lines) {
 			if(r.isIn(v)){
 				for(Vehicle c : r.vehicles) {
-					System.out.println("hi!");
 					if(c.isIn(v,r)) {
-						x = false;
+						EditField.r = r;
 						return c;
 					}
 				}
-				if (x) { return r; } 
+				return r;
 			}
 		}
 		
@@ -184,9 +200,40 @@ public class CSDisplay {
 				ArrayList<Integer> roads = getRoadsWithBend((Bend) o);
 				int j = 0;
 				for(int i : roads) {
+					Road road = lines.get(i-j);
+					
+					for(Road r : lines) {
+						if(r.nextRoad.contains(road)) {
+							System.out.println("hi!");
+							r.nextRoadProbability.remove(r.nextRoad.indexOf(road));
+							r.nextRoad.remove(road);
+							r.organizeNextRoad(1);
+						}
+					}
+					
+					for(Bend b : points) {
+						if(b.priorityList.contains(road)) {
+							b.priorityList.remove(road);
+						}
+					}
+					
 					lines.remove(i-j++);
 				}
 			} else if(o instanceof Road) {
+				for(Road r : lines) {
+					if(r.nextRoad.contains((Road) o)) {
+						System.out.println("hi!");
+						r.nextRoadProbability.remove(r.nextRoad.indexOf(o));
+						r.nextRoad.remove(o);
+						r.organizeNextRoad(1);
+					}
+				}
+				
+				for(Bend b : points) {
+					if(b.priorityList.contains(o)) {
+						b.priorityList.remove(o);
+					}
+				}
 				lines.remove(lines.indexOf((Road) o));
 			} else if(o instanceof Text) {
 				textObjects.remove((Text) o); 
@@ -239,16 +286,19 @@ public class CSDisplay {
 							r1 = road instanceof CarRoad ? new CarRoad(road.b1(),cp,cp.disTo(road.b1())) : new BicycleRoad(road.b1(),cp,cp.disTo(road.b1()));
 							r2 = road instanceof CarRoad ? new CarRoad(cp,road.b2(),cp.disTo(road.b2())) : new BicycleRoad(cp,road.b2(),cp.disTo(road.b2()));
 							
-							r1.addNextRoad(r2);
-							
 							for(Road cRoad : lines) {
 								if(cRoad.nextRoad.indexOf(road) >= 0) {
 									cRoad.nextRoad.set(cRoad.nextRoad.indexOf(road), r1);
 								}
 							}
 							
-							r2.nextRoad.addAll(road.nextRoad);
-							r2.nextRoadProbability.addAll(road.nextRoadProbability);
+							cp.priorityList.add(r1);
+							
+							r1.nextRoad.add(r2);
+							r1.nextRoadProbability.add(1.0);
+							
+							r2.nextRoad = road.nextRoad;
+							r2.nextRoadProbability = road.nextRoadProbability;
 							
 							lines.remove(road);
 							lines.add(r2);
@@ -280,7 +330,7 @@ public class CSDisplay {
 						lines.add(newRoad);
 						
 						// Add Final Road
-						if((size+(size2-(size+2))/2+2) == size2) {
+						if((size+2) == size2) {
 							newRoad = t ? new CarRoad(r.b1(), bend, bend.disTo(r.b1())) : new BicycleRoad(r.b1(), bend, bend.disTo(r.b1()));
 							newRoad.addNextRoad(lines.get(lines.size()-1));
 							
@@ -342,20 +392,20 @@ public class CSDisplay {
 		}
 	}
 	
-	private void addCrossover(Vector2d mouseV) {
+	/*private void addCrossover(Vector2d mouseV) {
 		if(SELECTED_POINT == null) {
 			// Create Clip on
 			SELECTED_POINT = new CrossoverPoint(mouseV.X(), mouseV.Y());
 			points.add(SELECTED_POINT);
 		} else {
-			// Add new point if none selected
 			Bend b = new CrossoverPoint(mouseV.X(), mouseV.Y());
 			
 			Road r = new Road(SELECTED_POINT, b, 1);
 			
 			Bend bend = r.b1();
 			CrossoverPoint cp = null;
-			Road r1, r2, road, newRoad, s;
+			Road r1, r2, road, s;
+			CrossoverRoad newRoad;
 			Vector2d intersection = null;
 			int size = lines.size(), size2 = lines.size(), index = 0;
 			
@@ -376,19 +426,25 @@ public class CSDisplay {
 							cp = new CrossoverPoint(intersection.X(), intersection.Y());
 							
 							// Split intersection roads in two
-							r1 = road instanceof CarRoad ? new CarRoad(road.b1(),cp,1) : new BicycleRoad(road.b1(),cp,1);
-							r2 = road instanceof CarRoad ? new CarRoad(cp,road.b2(),1) : new BicycleRoad(cp,road.b2(),1);
+							r1 = road instanceof CarRoad ? new CarRoad(road.b1(),cp,cp.disTo(road.b1())) : new BicycleRoad(road.b1(),cp,cp.disTo(road.b1()));
+							r2 = road instanceof CarRoad ? new CarRoad(cp,road.b2(),cp.disTo(road.b2())) : new BicycleRoad(cp,road.b2(),cp.disTo(road.b2()));
 							
 							r1.addNextRoad(r2);
 							
-							r2.nextRoad = road.nextRoad;
-							r2.nextRoadProbability = road.nextRoadProbability;
+							for(Road cRoad : lines) {
+								if(cRoad.nextRoad.indexOf(road) >= 0) {
+									cRoad.nextRoad.set(cRoad.nextRoad.indexOf(road), r1);
+								}
+							}
+							
+							r2.nextRoad.addAll(road.nextRoad);
+							r2.nextRoadProbability.addAll(road.nextRoadProbability);
 							
 							lines.remove(road);
 							lines.add(r2);
 							lines.add(r1);
 							
-							//points.add(cp);
+							points.add(cp);
 							
 							i--;
 							size--;
@@ -404,14 +460,20 @@ public class CSDisplay {
 					
 					// Add Road
 					if (i == (size2 - 2)) {
-						newRoad = new CrossoverRoad(r.b1(), r.b2(), r.b2().disTo(r.b1()));
+						newRoad = new CrossoverRoad(bend, r.b2(), bend.disTo(r.b2()));
 						r = new Road(r.b1(), bend, 1);
+						
+						if (i > size) {
+							newRoad.addNextRoad(lines.get(lines.size()-1));
+						}
 						
 						lines.add(newRoad);
 						
 						// Add Final Road
 						if((size+(size2-(size+2))/2+2) == size2) {
-							newRoad = new CrossoverRoad(r.b1(), r.b2(), r.b2().disTo(r.b1()));
+							newRoad = new CrossoverRoad(r.b1(), bend, bend.disTo(r.b1()));
+							newRoad.addNextRoad(lines.get(lines.size()-1));
+							
 							lines.add(newRoad);
 							
 							i = lines.size();
@@ -427,22 +489,32 @@ public class CSDisplay {
 					}
 					i++;
 				}
+
 			}
 			
 			// Add roads if there are no intersections
 			if(size == lines.size()) {
 				newRoad = new CrossoverRoad(r.b1(), r.b2(), r.b2().disTo(r.b1()));
+				
 				lines.add(newRoad);
+			} else {
+				for(Road cRoad : lines) {
+					if(cRoad.b1().equals(b)) {
+						lines.get(size2).addNextRoad(cRoad);
+					}
+				}
 			}
 			
 			points.add(b);
-			points.add(SELECTED_POINT);
 			
 			// Reset to default in mode
 			SELECTED_POINT = null;
+			point_vectors[0] = null;
+			point_vectors[1] = null;
+			
 			refreshDisplay();
 		}
-	}
+	}*/
 	private void addText(Vector2d mouseV) {
 		if(clickedText) {
 			Vector2d middleVector = point_vectors[0].sumVector(new Vector2d(textInputWidth, 0).getTransformRS(displayZoom));
@@ -552,7 +624,18 @@ public class CSDisplay {
 	private void showObjectInfo(Vector2d mouseV) {
 		Object o = getObjectAtLocation(mouseV);
 		if(o != null) {
-			CSControl.showObjectInfo(o);
+			if(o instanceof Road && priorityEdit != null && priorityEdit.priorityList.indexOf(o) < 0) {
+				priorityEdit.priorityList.add((Road) o);
+				((Road) o).color = Color.GREEN;
+				refreshDisplay();
+			} else if(o instanceof Road && weightEdit != null && weightEdit.nextRoad.indexOf((Road) o) < 0) {
+				weightEdit.addNextRoad((Road) o);
+				((Road) o).color = Color.GREEN;
+				refreshDisplay();
+			} else {
+				resetEdit();
+				CSControl.showObjectInfo(o);
+			}
 		}
 	}
 	
@@ -597,9 +680,9 @@ public class CSDisplay {
 			case 5: // Add Traffic Light
 				this.addTrafficLight(mouseV);
 				break;
-			case 6: // Add Crossover
+			/*case 6: // Add Crossover
 				this.addCrossover(mouseV);
-				break;
+				break;*/
 			case 7: // Add Text
 				this.addText(new Vector2d(CLICK_X, CLICK_Y));
 				break;
@@ -609,6 +692,7 @@ public class CSDisplay {
 			}
 		}
 	}
+	@SuppressWarnings("deprecation")
 	public void mouseDrag(MouseEvent e) {
 		// General mouse around
 		if(CLICK_DOWN && !displayBackground) {
@@ -722,21 +806,26 @@ public class CSDisplay {
 			}
 				
 			for(Road l : lines){
-				l.attemptToRender(g2d, displayZoom);
+				l.attemptToRender(g2d);
 			}
 			
 			if(SELECTED_POINT != null && point_vectors[1] != null) {
 				if(MODE == 3) {
-					new CarRoad(SELECTED_POINT, new Bend(point_vectors[1].X(), point_vectors[1].Y()), 1).attemptToRender(g2d, displayZoom);
+					new CarRoad(SELECTED_POINT, new Bend(point_vectors[1].X(), point_vectors[1].Y()), 1).attemptToRender(g2d);
 				} else if(MODE == 4) {
-					new BicycleRoad(SELECTED_POINT, new Bend(point_vectors[1].X(), point_vectors[1].Y()), 1).attemptToRender(g2d, displayZoom);
-				} else if(MODE == 6) {
-					new CrossoverRoad(SELECTED_POINT, new Bend(point_vectors[1].X(), point_vectors[1].Y()), 1).attemptToRender(g2d, displayZoom);
-				}
+					new BicycleRoad(SELECTED_POINT, new Bend(point_vectors[1].X(), point_vectors[1].Y()), 1).attemptToRender(g2d);
+				} else if(MODE == 5) {
+					Road r = new Road(SELECTED_POINT, new Bend(point_vectors[1].X(), point_vectors[1].Y()), 1);
+					r.color = Color.GREEN;
+					r.drawArrow = false;
+					r.attemptToRender(g2d);
+				}/* else if(MODE == 6) {
+					new CrossoverRoad(SELECTED_POINT, new Bend(point_vectors[1].X(), point_vectors[1].Y()), 1).attemptToRender(g2d);
+				}*/
 			}
-			if(CSControl.EDIT_MODE) {
-				for(Bend p : points){
-					p.attemptToRender(g2d, displayZoom);
+			for(Bend p : points){
+				if(p instanceof TrafficLight || (CSControl.EDIT_MODE || MODE == 8)) {
+					p.attemptToRender(g2d);
 				}
 			}
 			for(Text t : textObjects) {
@@ -771,15 +860,20 @@ public class CSDisplay {
 				}
 			}
 			
+			if(MODE == 8 && CSControl.editField != null) {
+				CSControl.editField.drawEmphasis(g2d);
+			}
+			
 			displayChanged = false;
 		}
+		
 		if(PLAY_SIMULATION) {
 			for (Road r : lines) {
 				if(r.vehicles.size() != 0) {
-					r.attemptToRender(g2d, displayZoom);
+					r.attemptToRender(g2d);
 					
-					//r.b1().attemptToRender(g2d, displayZoom);
-					//r.b2().attemptToRender(g2d, displayZoom);
+					if(r.b1() instanceof TrafficLight) { r.b1().attemptToRender(g2d); }
+					if(r.b2() instanceof TrafficLight) { r.b2().attemptToRender(g2d); }
 					
 					r.renderVehicles(g2d, displayZoom);
 					
@@ -792,13 +886,7 @@ public class CSDisplay {
 	public void spawnTick() {
 		if (PLAY_SIMULATION) {
 			for(Road r : lines) {
-				if(r instanceof CarRoad) {
-					CarRoad cr = (CarRoad) r;
-					cr.spawnTick();
-				} else if(r instanceof BicycleRoad) {
-					BicycleRoad cr = (BicycleRoad) r;
-					cr.spawnTick();
-				}
+					r.spawnTick();
 			}
 			for(Bend b : points) {
 				if(b instanceof TrafficLight) {
@@ -810,10 +898,32 @@ public class CSDisplay {
 
 	public static void calcFactor() {
 		double sum = 0;
-		for(double f : factors) {
-			sum += f;
-		}
+		
+			for(double f : factors) {
+				sum += f;
+			}
 		
 		Line.convertFactor = sum / factors.size();
+	}
+	
+	public static void collectData() {
+		if(!PAUSE && PLAY_SIMULATION) {
+			if ( System.nanoTime() - nanoTime >= Math.pow(10, 9) * collectSeconds ) {
+				nanoTime = System.nanoTime();
+				for(Road r : lines) {
+					if(r.saveDensity) {
+						try {
+							PrintWriter writer = new PrintWriter(new FileOutputStream(
+								    new File("data" + CSControl.slash + r.saveName + "_VEHICLE-DENSITY-DATA.txt"), 
+								    true)); 
+							writer.println(++r.saveNumber + "\t" + r.vehicleDensity());
+							writer.close();
+						}catch (IOException e) {
+						    //exception handling left as an exercise for the reader
+						}
+					}
+				}
+			}
+		}
 	}
 }

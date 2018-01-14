@@ -14,6 +14,7 @@ import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
 
 import roadGraph.*;
+import simulation.Vehicle;
 
 public class ModeButton {
 	private int POS_X, POS_Y, WIDTH = 50, HEIGHT = 50;
@@ -45,10 +46,9 @@ public class ModeButton {
 		if(mV.inRange(POS_X, POS_X+WIDTH, POS_Y, POS_Y+HEIGHT)) {
 			boolean doClick = true;
 			
+			CSDisplay.resetEdit();
+			
 			JFileChooser fileChooser;
-			ArrayList<Bend> bends;
-			ArrayList<Road> roads;
-			ArrayList<Text> texts;
 			CSControl.resetWeightEdit();
 			switch (MODE) {
 			case 8:
@@ -72,9 +72,12 @@ public class ModeButton {
 					CSControl.MODE = -1;
 					this.innerColor = CSControl.EDIT_MODE ? selectedColor : idleColor;
 				} else {
-					this.imagePath = "Start.png";
 					CSDisplay.PLAY_SIMULATION = false;
-					CSDisplay.PAUSE = false;
+					CSDisplay.PAUSE = true;
+					for(Road r : CSDisplay.lines) {
+						r.vehicles = new ArrayList<Vehicle>();
+						r.vehicleProgress = new ArrayList<Double>();
+					}
 					CSControl.modebuttons.set(0, new ModeButton(CSControl.POS_X+10+0*CSControl.rowDim, CSControl.POS_Y+10+0*CSControl.rowDim, -1, "Potlood.png"));
 				}
 				break;
@@ -94,10 +97,6 @@ public class ModeButton {
 				}
 				break;
 			case -3: // Load Button
-				bends = CSDisplay.points;
-				roads = CSDisplay.lines;
-				texts = CSDisplay.textObjects;
-				
 				fileChooser = new JFileChooser();
 				fileChooser.setCurrentDirectory(new File("states" + CSControl.slash));
 				if (fileChooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION) {
@@ -109,8 +108,6 @@ public class ModeButton {
 						e.printStackTrace();
 					}
 				}
-				
-				CSControl.saveLastState(bends, roads, texts);
 				break;
 			case -4: // Add Background Image Button
 				if(!CSDisplay.displayBackground) {
@@ -130,12 +127,6 @@ public class ModeButton {
 				}
 				break;
 			case -5: // New State
-				bends = CSDisplay.points;
-				roads = CSDisplay.lines;
-				texts = CSDisplay.textObjects;
-				
-				CSControl.saveLastState(bends, roads, texts);
-				
 				CSDisplay.resetState();
 				break;
 			case -6: // Start / Stop playing simulation

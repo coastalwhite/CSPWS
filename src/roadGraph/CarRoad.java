@@ -16,6 +16,10 @@ public class CarRoad extends Road {
 		
 		color = Color.BLACK;
 		
+		maxSpeed = 14.44f;
+		SDSpeed = 1.1f;
+		
+		defaultColor = Color.BLACK;
 	}
 	
 	public int randomBinom(double prob) {
@@ -44,15 +48,12 @@ public class CarRoad extends Road {
 			timePassed += (nanoTime - prevTime);
 			if (timePassed >= carSpawnTime) {
 				timePassed = 0;
-				if(vehicles.size() == 0) {
-					this.addVehicle(new Car(30.0));
-				} else {
-					Vehicle v = vehicles.get(vehicles.size()-1);
-					if(!(v.progress() * this.weight <= v.LENGTH * convertFactor && v.speed == 0.0)) {
-						this.addVehicle(new Car(30.0));
-					}
-				}
+				this.addVehicle(new Car(maxSpeed, SDSpeed));
 				carSpawnTime = (Math.pow(10, 9) / spawnTicksPerSec) * randomBinom(b1.carsPerSecond/spawnTicksPerSec);
+				
+				if(carSpawnTime < (Vehicle.safeDis/maxSpeed) * Math.pow(10, 9)) {
+					carSpawnTime = Vehicle.safeDis/maxSpeed * Math.pow(10, 9);
+				}
 			}
 			
 			prevTime = nanoTime;

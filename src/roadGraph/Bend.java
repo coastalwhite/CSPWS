@@ -1,6 +1,5 @@
 package roadGraph;
 
-import java.awt.Color;
 import java.awt.Graphics2D;
 import java.util.ArrayList;
 
@@ -18,23 +17,20 @@ public class Bend extends Point {
 
 	public boolean priorityEdit = false;
 	public ArrayList<Road> priorityList;
-	
-	private ArrayList<Vector2d> textFields;
 
 	public Bend(double iX, double iY) {
 		super(iX, iY);
 		
 		priorityList = new ArrayList<Road>();
-		textFields = new ArrayList<Vector2d>();
 	}
 	
-	public void attemptToRender(Graphics2D g2d, double displayZoom) {
+	public void attemptToRender(Graphics2D g2d) {
 		Vector2d v1;
-		
 		this.doDisplay = false;
 		
 		v1 = CSDisplay.tSR(new Vector2d(pos.X(), pos.Y()));
 		
+		// If in frame
 		if(!this.doDisplay) { this.doDisplay = v1.inRange(-1 * radius, CSDisplay.WIDTH+radius, -1 * radius, CSDisplay.HEIGHT+radius); }
 		
 		if(!doDisplay) {
@@ -61,61 +57,51 @@ public class Bend extends Point {
 		if(doDisplay) {
 			v1 = CSDisplay.tSR(new Vector2d(pos.X(), pos.Y()));
 			
-			this.drawPoint(g2d, v1, displayZoom);
+			this.drawPoint(g2d, v1);
 		}
 		
 	}
 	
 	public void drawPriorityEdit(Graphics2D g2d) {
 		if(priorityEdit) {
-			Vector2d posV1, posV2;
-			
 			int i = 0;
-			for(Road r : this.priorityList) {
-				if(r.doDisplay()) {
-					posV1 = new Vector2d((r.b1.pos().X()+r.b2.pos().X())/2-40, (r.b1.pos().Y()+r.b2.pos().Y())/2-10);
-					posV2 = new Vector2d((r.b1.pos().X()+r.b2.pos().X())/2+40, (r.b1.pos().Y()+r.b2.pos().Y())/2+10);
-					
-					textFields.add(posV1);
-					textFields.add(posV2);
-					
-					posV1 = CSDisplay.tSR(posV1);
-					posV2 = CSDisplay.tSR(posV2);
-					
-					g2d.setColor(Color.WHITE);
-					g2d.fillRect(posV1.INTX(), posV1.INTY(), posV2.difVector(posV1).INTX(), posV2.difVector(posV1).INTY());
-					g2d.setColor(Color.BLACK);
-					g2d.drawRect(posV1.INTX(), posV1.INTY(), posV2.difVector(posV1).INTX(), posV2.difVector(posV1).INTY());
-
-					posV1 = CSDisplay.tSR(new Vector2d((r.b1.pos().X()+r.b2.pos().X())/2-38, (r.b1.pos().Y()+r.b2.pos().Y())/2+4));
-
-					g2d.drawString(Integer.toString(i+1), posV1.INTX(), posV1.INTY());
-					
-					i++;
-				}
+			for(Road r : priorityList) {
+				r.drawTextField(g2d, Integer.toString(i+1));
+				i++;
 			}
 		}
 	}
-
 	public boolean editPriority(Vector2d mouseV) {
-		for(int i = 0; i < textFields.size(); i += 2) {
-			if(mouseV.inIn(textFields.get(i), textFields.get(i+1))) {
-				Road r = this.priorityList.get((int) Math.round(i/2));
-				int currentPriority = 1+(int) Math.round(i/2);
+		int i = 0;
+		for(Road r : priorityList) {
+			if(r.clickedTextField(mouseV)) {
+				int currentPriority = i+1;
 				String textInput = JOptionPane.showInputDialog(this 
 						 ,Integer.toString(currentPriority));
 				
+				if(textInput == null) {
+					return false;
+				}
 				int newPriority = Integer.parseInt(textInput)-1;
 				
-				if (textInput != "" && newPriority >= 1 && newPriority <= priorityList.size()) {
-					priorityList.set((int) Math.round(i/2), priorityList.get(newPriority));
-					priorityList.set(newPriority, r);
-					
+				if (textInput != "" && newPriority >= -1 && newPriority <= priorityList.size()) {
+					if(newPriority < 0) {
+						priorityList.get(i).color = priorityList.get(i/2).defaultColor;
+						priorityList.get(i).weightEdit = false;
+						priorityList.remove(i);
+					} else {
+						if(newPriority >= priorityList.size()) {
+							newPriority = priorityList.size()-1;
+						}
+						priorityList.set(i, priorityList.get(newPriority));
+						priorityList.set(newPriority, r);
+					}
 					CSDisplay.refreshDisplay();
 				}
-				
 				return true;
 			}
+
+			i++;
 		}
 		
 		return false;

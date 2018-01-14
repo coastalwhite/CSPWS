@@ -25,7 +25,7 @@ public class Coord {
 		return distance;
 	}
 	
-	// Returning methods
+	// Getters
 	public double X(){
 		return this.X;
 	}
@@ -38,6 +38,8 @@ public class Coord {
 	public int INTY(){
 		return (int) Math.round(this.Y);
 	}
+	
+	// Convertion
 	public Vector2d v() {
 		return new Vector2d(this.X, this.Y);
 	}

@@ -15,7 +15,6 @@ import java.util.Arrays;
 
 import graphCore.Coord;
 import graphics.MainWindow;
-import graphics.ScreenGraphics;
 import roadGraph.*;
 
 public class CSControl {
@@ -23,7 +22,7 @@ public class CSControl {
 				      WIDTH   =                     200,
 		         	  HEIGHT  = MainWindow.FRAME_HEIGHT,
 		         	  POS_X   =         CSDisplay.WIDTH,
-		        	      POS_Y   =                       0;
+		        	  POS_Y   =                       0;
 	
 	public static boolean EDIT_MODE = false;
 	public static int MODE = 0;
@@ -50,7 +49,7 @@ public class CSControl {
 		}
 		
 		try {
-			CSControl.loadState("states" + CSControl.slash + "carTest.txt");
+			CSControl.loadState("states" + CSControl.slash + "CarTest.txt");
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -84,7 +83,7 @@ public class CSControl {
 		modebuttons.add(new ModeButton(POS_X+10+1*rowDim, POS_Y+10+3*rowDim, 4, "FietspadAdd.png"));
 		
 		modebuttons.add(new ModeButton(POS_X+10+0*rowDim, POS_Y+10+4*rowDim, 5, "StoplichtAdd.png"));
-		modebuttons.add(new ModeButton(POS_X+10+1*rowDim, POS_Y+10+4*rowDim, 6, "ZebrapadAdd.png"));
+		//modebuttons.add(new ModeButton(POS_X+10+1*rowDim, POS_Y+10+4*rowDim, 6, "ZebrapadAdd.png"));
 		
 		modebuttons.add(new ModeButton(POS_X+10+0*rowDim, POS_Y+10+5*rowDim, 7, "TekstAdd.png"));
 		modebuttons.add(new ModeButton(POS_X+10+1*rowDim, POS_Y+10+5*rowDim, -4, "ImageImport.png"));
@@ -115,6 +114,8 @@ public class CSControl {
 		ArrayList<Road> roads = new ArrayList<Road>();
 		ArrayList<Text> texts = new ArrayList<Text>();
 		
+		ArrayList<Double> factors = new ArrayList<Double>();
+		
 		split = Arrays.copyOf(split, split.length-1);
 		
 		Road r;
@@ -124,6 +125,8 @@ public class CSControl {
 		ArrayList<String> priorityListStrings = new ArrayList<String>();
 		
 		int bendAmount = 0;
+		
+		String a;
 		
 		for(int i = 0; i < split.length; i++) {
 			split[i] = split[i].replace('<', '0');
@@ -136,7 +139,9 @@ public class CSControl {
 				switch (prop[2]) {
 				case "Type2":
 					b = new TrafficLight(Double.parseDouble(prop[3]), Double.parseDouble(prop[4]));
-					((TrafficLight) b).modeTime = Long.parseLong(prop[6]);
+					((TrafficLight) b).TLTimingR = Long.parseLong(prop[6]);
+					((TrafficLight) b).TLTimingG = Long.parseLong(prop[6]);
+					((TrafficLight) b).TLTimingO = Long.parseLong(prop[6]);
 					bends.add(b);
 					break;
 				case "Type3":
@@ -155,33 +160,47 @@ public class CSControl {
 				
 				bendAmount++;
 				break;
-			case "Line": // <#ID,Line,Type,#PointID1,#PointID2, Weight, NextRoads>
+			case "Line": // <#ID,Line,Type,#PointID1,#PointID2, Attributes, NextRoads>
 				switch (prop[2]) {
 				case "Type1":
-					r = new CarRoad(bends.get(Integer.parseInt(prop[3])-1), bends.get(Integer.parseInt(prop[4])-1), Double.parseDouble(prop[5]));
+					r = new CarRoad(bends.get(Integer.parseInt(prop[3])-1), bends.get(Integer.parseInt(prop[4])-1), bends.get(Integer.parseInt(prop[3])-1).disTo(bends.get(Integer.parseInt(prop[4])-1)));
+					a = prop[5].replace('{', '0').replace('}', '0');
+					r.maxSpeed = Double.parseDouble(a.split(";")[0]);
+					r.SDSpeed = Double.parseDouble(a.split(";")[1]);
 					roads.add(r);
 					
 					nextRoadStrings.add(prop[6]);
 					
 					break;
 				case "Type2":
-					r = new BicycleRoad(bends.get(Integer.parseInt(prop[3])-1), bends.get(Integer.parseInt(prop[4])-1), Double.parseDouble(prop[5]));
+					r = new BicycleRoad(bends.get(Integer.parseInt(prop[3])-1), bends.get(Integer.parseInt(prop[4])-1), bends.get(Integer.parseInt(prop[3])-1).disTo(bends.get(Integer.parseInt(prop[4])-1)));
+					a = prop[5].replace('{', '0').replace('}', '0');
+					r.maxSpeed = Double.parseDouble(a.split(";")[0]);
+					r.SDSpeed = Double.parseDouble(a.split(";")[1]);
 					roads.add(r);
 					
 					nextRoadStrings.add(prop[6]);
 					
 					break;
-				case "Type3":
-					r = new CrossoverRoad(bends.get(Integer.parseInt(prop[3])-1), bends.get(Integer.parseInt(prop[4])-1), Double.parseDouble(prop[5]));
+				/*case "Type3":
+					r = new CrossoverRoad(bends.get(Integer.parseInt(prop[3])-1), bends.get(Integer.parseInt(prop[4])-1), bends.get(Integer.parseInt(prop[3])-1).disTo(bends.get(Integer.parseInt(prop[4])-1)));
+					a = prop[5].replace('{', '0').replace('}', '0');
+					r.maxSpeed = Double.parseDouble(a.split(";")[0]);
+					r.SDSpeed = Double.parseDouble(a.split(";")[1]);
 					roads.add(r);
 					
 					nextRoadStrings.add(prop[6]);
 					
-					break;
+					break;*/
 				}	
 				break;
 			case "Text": // <#ID,Text,Type,#X,#Y,#Angle,TextInput>
 				texts.add(new Text(Double.parseDouble(prop[3]), Double.parseDouble(prop[4]), Double.parseDouble(prop[5]), prop[6]));
+				break;
+			case "Factors":
+				for(int x = 2; x < prop.length; x++) {
+					factors.add(Double.parseDouble(prop[x]));
+				}
 				break;
 			}
 			
@@ -196,9 +215,15 @@ public class CSControl {
 				for(String rstr : list) {
 					prop = rstr.split(":");
 					
-					roads.get(j).nextRoad.add(roads.get((Integer.parseInt(prop[0])-bends.size()-1)));
-					roads.get(j).nextRoadProbability.add(Double.parseDouble(prop[1]));
+					if((Integer.parseInt(prop[0])-bends.size()-1) != -1){
+					
+						roads.get(j).nextRoad.add(roads.get((Integer.parseInt(prop[0])-bends.size()-1)));
+						roads.get(j).nextRoadProbability.add(Double.parseDouble(prop[1]));
+						
+					}
 				}
+				
+				roads.get(j).organizeNextRoad(1);
 			}
 			j++;
 		}
@@ -209,7 +234,9 @@ public class CSControl {
 			if(str.length() != 2) {
 				list = str.split(";");
 				for(String rstr : list) {
-					bends.get(j).priorityList.add(roads.get(Integer.parseInt(rstr.trim())-bendAmount-1));
+					if((Integer.parseInt(rstr.trim())-bendAmount-1) != -1){
+						bends.get(j).priorityList.add(roads.get(Integer.parseInt(rstr.trim())-bendAmount-1));
+					}
 				}
 			}
 			j++;
@@ -218,6 +245,9 @@ public class CSControl {
 		CSDisplay.lines = roads;
 		CSDisplay.points = bends;
 		CSDisplay.textObjects = texts;
+		
+		CSDisplay.factors = factors;
+		CSDisplay.calcFactor();
 		
 		CSDisplay.refreshDisplay();
 	}
@@ -240,7 +270,7 @@ public class CSControl {
 				type = "Type3";
 			} else if(b instanceof TrafficLight) {
 				type = "Type2";
-				str = Long.toString(((TrafficLight) b).modeTime);
+				str = Long.toString(((TrafficLight) b).TLTimingR);
 			} else {
 				type = "Type1";
 				str = Double.toString(b.carsPerSecond) + "," + Double.toString(b.bikesPerSecond);
@@ -282,11 +312,11 @@ public class CSControl {
 				type = "Type1";
 			} else if(r.getClass() == BicycleRoad.class) {
 				type = "Type2";
-			} else if(r.getClass() == CrossoverRoad.class) {
+			}/* else if(r.getClass() == CrossoverRoad.class) {
 				type = "Type3";
-			}
+			}*/
 			
-			str = "<" + Integer.toString(i) + ",Line," + type + "," + Integer.toString(b1+1) + "," + Integer.toString(b2+1) + "," + Double.toString(r.weight()) + ",{";
+			str = "<" + Integer.toString(i) + ",Line," + type + "," + Integer.toString(b1+1) + "," + Integer.toString(b2+1) + ",{" + Double.toString(r.maxSpeed) + ";" + Double.toString(r.SDSpeed) + "},{";
 			j = 0;
 			for(Road nr : r.nextRoad) {
 				str += Integer.toString(CSDisplay.lines.indexOf(nr)+bendAmount+1) + ":" + Double.toString(r.nextRoadProbability.get(j));
@@ -309,65 +339,16 @@ public class CSControl {
 			writer.println(str);
 		}
 		
-		writer.close();
-	}
-	public static void saveLastState(ArrayList<Bend> bends, ArrayList<Road> roads, ArrayList<Text> texts) {
-		PrintWriter writer = null;
-		try {
-			writer = new PrintWriter("states" + CSControl.slash + "lastState.txt", "UTF-8");
-		} catch (FileNotFoundException e) {
-			e.printStackTrace();
-		} catch (UnsupportedEncodingException e) {
-			e.printStackTrace();
+		str = "<" + Integer.toString(i) + ",Factors";
+		for(double f : CSDisplay.factors) {
+			str += "," + Double.toString(f);
 		}
-		int i = 0;
-		
-		ArrayList<Coord> coords = new ArrayList<Coord>();
-		
-		for(Bend b : bends) {
-			i++;
-			coords.add(b.pos());
-			
-			String type = "Type0";
-			
-			if(b.getClass() == Bend.class) {
-				type = "Type1";
-			} else if(b.getClass() == TrafficLight.class) {
-				type = "Type2";
-			} else if(b.getClass() == CrossoverPoint.class) {
-				type = "Type3";
-			}
-			
-			writer.println("<" + Integer.toString(i) + ",Point," + type + "," + Double.toString(b.pos().X()) + "," + Double.toString(b.pos().Y()) + "," + Double.toString(b.carsPerSecond) + "," + Double.toString(b.bikesPerSecond) + ">");
-		}
-		
-		int b1, b2;
-		for(Road r : roads) {
-			i++;
-			
-			b1 = coords.indexOf(r.p1().pos());
-			b2 = coords.indexOf(r.p2().pos());
-			
-			String type = "Type0";
-			
-			if(r.getClass() == CarRoad.class) {
-				type = "Type1";
-			} else if(r.getClass() == BicycleRoad.class) {
-				type = "Type2";
-			} else if(r.getClass() == CrossoverRoad.class) {
-				type = "Type3";
-			}
-			
-			writer.println("<" + Integer.toString(i) + ",Line," + type + "," + Integer.toString(b1+1) + "," + Integer.toString(b2+1) + "," + Double.toString(r.weight()) + ">");
-		}
-		for(Text t : texts) {
-			i++;
-			
-			writer.println("<" + Integer.toString(i) + ",Text,Type1," + Double.toString(t.X()) + "," + Double.toString(t.Y()) + "," + Double.toString(t.Angle()) + "," + t.text + ">");
-		}
+		str += ">";
+		writer.println(str);
 		
 		writer.close();
 	}
+	
 	
 	public static void resetWeightEdit() {
 		if(CSDisplay.weightEdit != null) {
@@ -390,6 +371,7 @@ public class CSControl {
 		editField = new EditField(o);
 		
 		refreshDisplay();
+		CSDisplay.refreshDisplay();
 	}
 	
 	// Event Handlers

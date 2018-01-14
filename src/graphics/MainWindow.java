@@ -13,6 +13,8 @@ public class MainWindow extends JFrame {
 	public static MainWindow GUI;
 	
 	public static void main(String s[]) {
+		// Init Window
+		
 		GUI = new MainWindow();
 		GUI.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		GUI.setSize(FRAME_WIDTH, FRAME_HEIGHT);

@@ -11,6 +11,11 @@ public class BicycleRoad extends Road {
 		
 		color = Color.RED;
 		arrowColor = Color.BLACK;
+		
+		maxSpeed = 5.556f;
+		SDSpeed = 0.7638f;
+		
+		this.defaultColor = Color.RED;
 	}
 
 	
@@ -24,7 +29,7 @@ public class BicycleRoad extends Road {
 			timePassed += (nanoTime - prevTime);
 			if (timePassed / Math.pow(10, 9) >= (1/b1.bikesPerSecond)) {
 				timePassed -= Math.pow(10, 9);
-				this.addVehicle(new Bicycle(10.0));
+				this.addVehicle(new Bicycle(maxSpeed, SDSpeed));
 			}
 			
 			prevTime = nanoTime;

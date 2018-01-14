@@ -10,23 +10,39 @@ import java.io.IOException;
 import javax.imageio.ImageIO;
 import javax.swing.JOptionPane;
 
+import graphCore.Coord;
 import roadGraph.*;
-import simulation.Car;
 import simulation.Vehicle;
 
 public class EditField {
-	private Object o = null;
+	public static Road r = null;
+	
+	private static Object o = null;
 	private int x = 1010,
 				y = 90,
 				WIDTH = 180,
 				SPACE = 60;
 	
 	private int buttonCount = 0;
+	private Emphasis emp;
 	
 	public EditField(Object iO) {
-		this.o = iO;
+		EditField.o = iO;
+		
+		emp = new Emphasis (1.0f);
 	}
 	
+	private void drawEditValue(Graphics2D g2d, String s, String v, String d, int i) {
+		g2d.setColor(Color.WHITE);
+		g2d.drawRect(x, y+5+i*SPACE, WIDTH/2-2, 30);
+		g2d.drawRect(x+WIDTH/2+2, y+5+i*SPACE, WIDTH/2-2, 30);
+		g2d.setColor(Color.BLACK);
+		g2d.drawString(s, x+2, y+i*SPACE);
+		g2d.drawString(v, x+5, y+28+i*SPACE);
+		g2d.drawString(d, x+5+WIDTH/2, y+28+i*SPACE);
+		
+		buttonCount++;
+	}
 	private void drawStroke(Graphics2D g2d, String s, String v, int i) {
 		g2d.setColor(Color.WHITE);
 		g2d.drawRect(x, y+5+i*SPACE, WIDTH, 30);
@@ -63,6 +79,9 @@ public class EditField {
 	}
 	
 	public void draw(Graphics2D g2d) {
+		g2d.setFont(new Font("sansserif", Font.BOLD, 13));
+		int digits = 3;
+		
 		if(o instanceof Bend) {
 			/*
 			 * 0: carsPerSecond
@@ -72,18 +91,29 @@ public class EditField {
 			if(o instanceof TrafficLight) {
 				TrafficLight b = (TrafficLight) o;
 				
-				g2d.setFont(new Font("sansserif", Font.BOLD, 16));
-				
-				drawStroke(g2d, "Cars per Second", Double.toString(b.carsPerSecond), 0);
-				drawStroke(g2d, "Bikes per Second", Double.toString(b.bikesPerSecond), 1);
-				drawStroke(g2d, "Change Mode Timing", Double.toString(b.modeTime/1000) + " Sec", 2);
+				drawStroke(g2d,
+						"TL Timing RED",
+						Double.toString(Math.round(b.TLTimingR*Math.pow(10, digits))/Math.pow(10, digits*2)),
+						0);
+				drawStroke(g2d,
+						"TL Timing GREEN",
+						Double.toString(Math.round(b.TLTimingG*Math.pow(10, digits))/Math.pow(10, digits*2)),
+						1);
+				drawStroke(g2d,
+						"TL Timing ORANGE",
+						Double.toString(Math.round(b.TLTimingO*Math.pow(10, digits))/Math.pow(10, digits*2)),
+						2);
 			} else {
 				Bend b = (Bend) o;
 				
-				g2d.setFont(new Font("sansserif", Font.BOLD, 16));
-				
-				drawStroke(g2d, "Cars per Second", Double.toString(b.carsPerSecond), 0);
-				drawStroke(g2d, "Bikes per Second", Double.toString(b.bikesPerSecond), 1);
+				drawStroke(g2d,
+						"Cars per Second",
+						Double.toString(Math.round(b.carsPerSecond*Math.pow(10, digits))/Math.pow(10, digits)),
+						0);
+				drawStroke(g2d,
+						"Bikes per Second",
+						Double.toString(Math.round(b.bikesPerSecond*Math.pow(10, digits))/Math.pow(10, digits)),
+						1);
 				
 
 				drawImgButton(g2d, "Priority", "buttons" + CSControl.slash + "dice.png", 2);
@@ -96,15 +126,21 @@ public class EditField {
 			
 			Road r = (Road) o;
 			
-			g2d.setFont(new Font("sansserif", Font.BOLD, 16));
-			
 			drawButton(g2d, "switchDirection", 0);
-			drawStroke(g2d, "Real world length", Double.toString(r.convertFactor * r.length()), 1);
-			drawImgButton(g2d, "Progression", "buttons" + CSControl.slash + "dice.png", 2);
+			drawEditValue(g2d,
+					"Speed (Avg - SD)",
+					Double.toString(Math.round(r.maxSpeed*Math.pow(10, digits))/Math.pow(10, digits)),
+					Double.toString(Math.round(r.SDSpeed*Math.pow(10, digits))/Math.pow(10, digits)),
+					1);
+			drawStroke(g2d, "Real world length", Double.toString(r.weight()), 2);
+			drawImgButton(g2d, "Progression", "buttons" + CSControl.slash + "dice.png", 3);
+			
+			drawStroke(g2d, "Amount of cars on road", Integer.toString(r.vehicles.size()), 5);
+			drawStroke(g2d, "Vehicle Density", Double.toString(Math.round(r.vehicleDensity()*Math.pow(10, digits+2))/Math.pow(10, digits)) + "%", 6);
+			
+			drawStroke(g2d, "Save Density Data", (r.saveDensity) ? "On!" : "Off...", 7);
 		} else if (o instanceof Vehicle) {
 			Vehicle v = (Vehicle) o;
-			
-			g2d.setFont(new Font("sansserif", Font.BOLD, 16));
 			
 			drawStroke(g2d, "Speed", Double.toString(v.speed), 0);
 			drawStroke(g2d, "prefSpeed", Double.toString(v.prefSpeed), 1);
@@ -112,6 +148,29 @@ public class EditField {
 			drawStroke(g2d, "Stopping for slower Vehicle", Boolean.toString(v.ufCarsChanged), 3);
 			drawStroke(g2d, "Stopping for Traffic Light", Boolean.toString(v.ufTLChanged), 4);
 			drawStroke(g2d, "Stopping for Crossing point", Boolean.toString(v.ufCPChanged), 5);
+			
+			drawStroke(g2d, "Debug Value", v.debugval, 7);
+		}
+	}
+	
+	public void drawEmphasis(Graphics2D g2d) {
+		if(o instanceof Bend) {
+			Bend b = (Bend) o;
+			
+			emp.EmpRadius = 10;
+			emp.drawEmphasis(g2d, CSDisplay.tSR(b.pos().v()));
+		} else if (o instanceof Road) {
+			Road r = (Road) o;
+			
+			emp.EmpRadius = r.p1().disTo(r.p2())*0.5 + 10;
+			Coord c = r.getPos();
+			emp.drawEmphasis(g2d, new Vector2d(c.X(), c.Y()));
+		} else if (o instanceof Vehicle) {
+			Vehicle v = (Vehicle) o;
+			
+			emp.EmpRadius = 8;
+			Coord c = v.getPos(r);
+			emp.drawEmphasis(g2d, new Vector2d(c.X(), c.Y()));
 		}
 	}
 	
@@ -119,53 +178,76 @@ public class EditField {
 		String textInput;
 		for (int i = 0; i < buttonCount; i++) {
 			if(v.inRange(x, x+WIDTH, y+5+i*SPACE, y+5+i*SPACE+30)) {
-				if(this.o instanceof Bend) {
+				if(EditField.o instanceof Bend) {
 					Bend b = (Bend) o;
-					switch(i) {
-					case 0:
-						textInput = JOptionPane.showInputDialog(this 
-								 ,Double.toString(b.carsPerSecond));
-						
-						if (textInput != "") {
-							b.carsPerSecond = Double.parseDouble(textInput);
-							CSControl.refreshDisplay();
-						}
-						break;
-					case 1:
-						textInput = JOptionPane.showInputDialog(this 
-								 ,Double.toString(b.bikesPerSecond));
-						
-						if (textInput != "") {
-							b.bikesPerSecond = Double.parseDouble(textInput);
-							CSControl.refreshDisplay();
-						}
-						break;
-					case 2:
-						if(this.o instanceof TrafficLight) {
+					if(o instanceof TrafficLight) {
+						TrafficLight tl = (TrafficLight) o;
+						switch(i) {
+						case 0:
 							textInput = JOptionPane.showInputDialog(this 
-									 ,Double.toString(((TrafficLight) o).modeTime/1000));
+									 ,Double.toString(tl.TLTimingR/1000));
 							
-							if (textInput != "") {
-								((TrafficLight) o).modeTime = (long) (Math.round(Double.parseDouble(textInput)*1000));
+							if(textInput != null && textInput != "") {
+								tl.TLTimingR = (long) Math.round(Double.parseDouble(textInput)*1000);
 								CSControl.refreshDisplay();
 							}
-						} else {
-							for(Road road : ((Bend) this.o).priorityList) {
-								if(road.color == Color.GREEN) {
-									road.color = Color.BLACK;
-									((Bend) this.o).priorityEdit = false;
+							break;
+						case 1:
+							textInput = JOptionPane.showInputDialog(this 
+									 ,Double.toString(tl.TLTimingG/1000));
+							
+							if(textInput != null && textInput != "") {
+								tl.TLTimingG = (long) Math.round(Double.parseDouble(textInput)*1000);
+								CSControl.refreshDisplay();
+							}
+							break;
+						case 2:
+							textInput = JOptionPane.showInputDialog(this 
+									 ,Double.toString(tl.TLTimingO/1000));
+							
+							if(textInput != null && textInput != "") {
+								tl.TLTimingO = (long) Math.round(Double.parseDouble(textInput)*1000);
+								CSControl.refreshDisplay();
+							}
+							break;
+						}
+					} else {
+						switch(i) {
+						case 0:
+							textInput = JOptionPane.showInputDialog(this 
+									 ,Double.toString(b.carsPerSecond));
+							
+							if(textInput != null && textInput != "") {
+								b.carsPerSecond = Double.parseDouble(textInput);
+								CSControl.refreshDisplay();
+							}
+							break;
+						case 1:
+							textInput = JOptionPane.showInputDialog(this 
+									 ,Double.toString(b.bikesPerSecond));
+							
+							if (textInput != null && textInput != "") {
+								b.bikesPerSecond = Double.parseDouble(textInput);
+								CSControl.refreshDisplay();
+							}
+							break;
+						case 2:
+							for(Road road : ((Bend) EditField.o).priorityList) {
+								if(road.color != road.defaultColor) {
+									road.color = road.defaultColor;
+									((Bend) EditField.o).priorityEdit = false;
 									CSDisplay.priorityEdit = null;
 								} else {
 									road.color = Color.GREEN;
-									((Bend) this.o).priorityEdit = true;
-									CSDisplay.priorityEdit = ((Bend) this.o);
+									((Bend) EditField.o).priorityEdit = true;
+									CSDisplay.priorityEdit = ((Bend) EditField.o);
 								}
 							}
 							CSDisplay.refreshDisplay();
+							break;
 						}
-						break;
 					}
-				} else if(this.o instanceof Road) {
+				} else if(EditField.o instanceof Road) {
 					Road r = (Road) o;
 					switch (i) {
 					case 0:
@@ -173,21 +255,40 @@ public class EditField {
 						CSDisplay.refreshDisplay();
 						break;
 					case 1:
+						if(v.inRange(x, x+WIDTH/2, y+5+i*SPACE, y+5+i*SPACE+30)){
+							textInput = JOptionPane.showInputDialog(this 
+									 ,Double.toString(r.maxSpeed));
+							
+							if(textInput != null && textInput != "") {
+								r.maxSpeed = Double.parseDouble(textInput);
+								CSControl.refreshDisplay();
+							}
+						} else {
+							textInput = JOptionPane.showInputDialog(this 
+									 ,Double.toString(r.SDSpeed));
+							
+							if (textInput != null && textInput != "") {
+								r.SDSpeed = Double.parseDouble(textInput);
+								CSControl.refreshDisplay();
+							}
+						}
+						break;
+					case 2:
 						textInput = JOptionPane.showInputDialog(this 
-								 ,Double.toString(r.convertFactor * r.length()));
+								 ,Double.toString(r.weight()));
 						
-						if (textInput != "") {
-							double f = Double.parseDouble(textInput) / r.length();
+						if (textInput != null && textInput != "") {
+							double f = Double.parseDouble(textInput) / r.getWeight();
 							CSDisplay.factors.add(f);
 							CSDisplay.calcFactor();
 							CSControl.refreshDisplay();
 						}
 						CSDisplay.refreshDisplay();
 						break;
-					case 2:
+					case 3:
 						for(Road road : r.nextRoad) {
-							if(road.color == Color.GREEN) {
-								road.color = r.color;
+							if(road.color != road.defaultColor) {
+								road.color = road.defaultColor;
 								r.weightEdit = false;
 								CSDisplay.weightEdit = null;
 							} else {
@@ -198,9 +299,44 @@ public class EditField {
 						}
 						CSDisplay.refreshDisplay();
 						break;
+					case 7:
+						if(r.saveDensity) {
+							r.saveDensity = false;
+						} else {
+							if(r.saveName == "") {
+								textInput = JOptionPane.showInputDialog(this 
+										 ,"Road X");
+							} else {
+								textInput = JOptionPane.showInputDialog(this 
+										 ,r.saveName);
+							}
+							
+							if(textInput != null && textInput != "") {
+								r.saveName = textInput;
+								r.saveDensity = true;
+							}
+						}
+						CSControl.refreshDisplay();
+					}
+				} else if (o instanceof Vehicle) {
+					Vehicle veh = (Vehicle) o;
+					switch (i) {
+					case 0:
+						textInput = JOptionPane.showInputDialog(this 
+								 ,Double.toString(veh.speed));
+						
+						if(textInput != null && textInput != "") {
+							veh.speed = Double.parseDouble(textInput);
+							CSControl.refreshDisplay();
+						}
+						break;
 					}
 				}
 			}
 		}
+	}
+	
+	public static Object o() {
+		return o;
 	}
 }
