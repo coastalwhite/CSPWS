@@ -11,13 +11,15 @@ import javax.imageio.ImageIO;
 import javax.swing.JOptionPane;
 
 import graphCore.Coord;
+import graphics.ScreenGraphics;
 import roadGraph.*;
 import simulation.Vehicle;
 
 public class EditField {
 	public static Road r = null;
+	public static boolean showSettings = false;
 	
-	private static Object o = null;
+	public static Object o;
 	private int x = 1010,
 				y = 90,
 				WIDTH = 180,
@@ -82,7 +84,51 @@ public class EditField {
 		g2d.setFont(new Font("sansserif", Font.BOLD, 13));
 		int digits = 3;
 		
-		if(o instanceof Bend) {
+		if(o instanceof CSDisplay) {
+			if (showSettings) {
+				/*
+				 * 
+				 * 0: doMeasure
+				 * 1: Standard state name
+				 * 2: Runs per state
+				 * 3: Max state
+				 * 4: First state
+				 * 5: Warm up time (hours)
+				 * 6: Measure time (hours)
+				 * 
+				 */
+				
+				drawStroke(g2d, "Speed up factor", Float.toString(ScreenGraphics.speedFactor),0);
+				drawStroke(g2d, "Spawn Multiplier", Float.toString(CSControl.spawnMultiplier),1);
+				drawStroke(g2d, "Do mass measure", CSDisplay.doMeasure ? "On!" : "Off...", 2);
+				drawStroke(g2d,
+						"Standard state Name",
+						CSDisplay.stateName,
+						3);
+				drawStroke(g2d,
+						"Runs per state",
+						Integer.toString(CSDisplay.switchRun),
+						4);
+				drawStroke(g2d,
+						"Max state",
+						Integer.toString(CSDisplay.maxState),
+						5);
+				drawStroke(g2d,
+						"First state",
+						Integer.toString(CSDisplay.currentState),
+						6);
+				drawStroke(g2d,
+						"Warm up time (sim. hours)",
+						Float.toString(CSDisplay.warmUpHours),
+						7);
+				drawStroke(g2d,
+						"Measure time (sim. hours)",
+						Float.toString(CSDisplay.runHours),
+						8);
+				buttonCount = 9;
+			}
+			drawButton(g2d, "Settings", 9);
+		} else if(o instanceof Bend) {
 			/*
 			 * 0: carsPerSecond
 			 * 1: bikesPerSecond
@@ -106,15 +152,18 @@ public class EditField {
 			} else {
 				Bend b = (Bend) o;
 				
-				drawStroke(g2d,
+				if(b.carRoadCon) {
+					drawStroke(g2d,
 						"Cars per Second",
 						Double.toString(Math.round(b.carsPerSecond*Math.pow(10, digits))/Math.pow(10, digits)),
 						0);
+				}
+				if(b.bikeRoadCon) {
 				drawStroke(g2d,
 						"Bikes per Second",
 						Double.toString(Math.round(b.bikesPerSecond*Math.pow(10, digits))/Math.pow(10, digits)),
 						1);
-				
+				}
 
 				drawImgButton(g2d, "Priority", "buttons" + CSControl.slash + "dice.png", 2);
 			}
@@ -132,24 +181,26 @@ public class EditField {
 					Double.toString(Math.round(r.maxSpeed*Math.pow(10, digits))/Math.pow(10, digits)),
 					Double.toString(Math.round(r.SDSpeed*Math.pow(10, digits))/Math.pow(10, digits)),
 					1);
-			drawStroke(g2d, "Real world length", Double.toString(r.weight()), 2);
+			drawStroke(g2d, "Real world length", Float.toString(r.length()), 2);
 			drawImgButton(g2d, "Progression", "buttons" + CSControl.slash + "dice.png", 3);
 			
 			drawStroke(g2d, "Amount of cars on road", Integer.toString(r.vehicles.size()), 5);
 			drawStroke(g2d, "Vehicle Density", Double.toString(Math.round(r.vehicleDensity()*Math.pow(10, digits+2))/Math.pow(10, digits)) + "%", 6);
 			
 			drawStroke(g2d, "Save Density Data", (r.saveDensity) ? "On!" : "Off...", 7);
+			
+			//drawStroke(g2d, "Debug Value", r.debugVal, 8);
 		} else if (o instanceof Vehicle) {
 			Vehicle v = (Vehicle) o;
 			
-			drawStroke(g2d, "Speed", Double.toString(v.speed), 0);
-			drawStroke(g2d, "prefSpeed", Double.toString(v.prefSpeed), 1);
+			drawStroke(g2d, "Speed", Float.toString(v.speed), 0);
+			drawStroke(g2d, "SpeedDif", Float.toString(v.speedDif), 1);
 			
 			drawStroke(g2d, "Stopping for slower Vehicle", Boolean.toString(v.ufCarsChanged), 3);
 			drawStroke(g2d, "Stopping for Traffic Light", Boolean.toString(v.ufTLChanged), 4);
 			drawStroke(g2d, "Stopping for Crossing point", Boolean.toString(v.ufCPChanged), 5);
 			
-			drawStroke(g2d, "Debug Value", v.debugval, 7);
+			//drawStroke(g2d, "Debug Value", v.debugval, 7);
 		}
 	}
 	
@@ -178,7 +229,105 @@ public class EditField {
 		String textInput;
 		for (int i = 0; i < buttonCount; i++) {
 			if(v.inRange(x, x+WIDTH, y+5+i*SPACE, y+5+i*SPACE+30)) {
-				if(EditField.o instanceof Bend) {
+				if(EditField.o instanceof CSDisplay) {
+					/*
+					 * 
+					 * 0: doMeasure
+					 * 1: Standard state name
+					 * 2: Runs per state
+					 * 3: Max state
+					 * 4: First state
+					 * 5: Warm up time (hours)
+					 * 6: Measure time (hours)
+					 * 
+					 */
+					if(showSettings) {
+						switch(i) {
+						case 0:
+							textInput = JOptionPane.showInputDialog(this 
+									 ,Double.toString(ScreenGraphics.speedFactor));
+							
+							if(textInput != null && textInput != "") {
+								ScreenGraphics.speedFactor = Float.parseFloat(textInput);
+								CSControl.refreshDisplay();
+							}
+							break;
+						case 1:
+							textInput = JOptionPane.showInputDialog(this 
+									 ,Double.toString(CSControl.spawnMultiplier));
+							
+							if(textInput != null && textInput != "") {
+								CSControl.spawnMultiplier = Float.parseFloat(textInput);
+								CSControl.refreshDisplay();
+							}
+							break;
+						case 2:
+							CSDisplay.doMeasure = !CSDisplay.doMeasure;
+							CSControl.refreshDisplay();
+							break;
+						case 3:
+							textInput = JOptionPane.showInputDialog(this 
+									 ,CSDisplay.stateName);
+							
+							if(textInput != null && textInput != "") {
+								CSDisplay.stateName = textInput;
+								CSControl.refreshDisplay();
+							}
+							break;
+						case 4:
+							textInput = JOptionPane.showInputDialog(this 
+									 ,Integer.toString(CSDisplay.switchRun));
+							
+							if(textInput != null && textInput != "") {
+								CSDisplay.switchRun = Integer.parseInt(textInput);
+								CSControl.refreshDisplay();
+							}
+							break;
+						case 5:
+							textInput = JOptionPane.showInputDialog(this 
+									 ,Integer.toString(CSDisplay.maxState));
+							
+							if(textInput != null && textInput != "") {
+								CSDisplay.maxState = Integer.parseInt(textInput);
+								CSControl.refreshDisplay();
+							}
+							break;
+						case 6:
+							textInput = JOptionPane.showInputDialog(this 
+									 ,Integer.toString(CSDisplay.currentState));
+							
+							if(textInput != null && textInput != "") {
+								CSDisplay.currentState = Integer.parseInt(textInput);
+								CSControl.refreshDisplay();
+							}
+							break;
+						case 7:
+							textInput = JOptionPane.showInputDialog(this 
+									 ,Double.toString(CSDisplay.warmUpHours));
+							
+							if(textInput != null && textInput != "") {
+								CSDisplay.warmUpHours = Float.parseFloat(textInput);
+								CSDisplay.warmUpTicks = (int) (Float.parseFloat(textInput)*3600*ScreenGraphics.ticksPerSecond);
+								CSControl.refreshDisplay();
+							}
+							break;
+						case 8:
+							textInput = JOptionPane.showInputDialog(this 
+									 ,Double.toString(CSDisplay.runHours));
+							
+							if(textInput != null && textInput != "") {
+								CSDisplay.runHours = Float.parseFloat(textInput);
+								CSDisplay.resetTicks = (int) (Float.parseFloat(textInput)*3600*ScreenGraphics.ticksPerSecond) + CSDisplay.warmUpTicks;
+								CSControl.refreshDisplay();
+							}
+							break;
+						}
+					}
+					if(i == 9) {
+						showSettings = !showSettings;
+						CSControl.refreshDisplay();
+					}
+				} else if(EditField.o instanceof Bend) {
 					Bend b = (Bend) o;
 					if(o instanceof TrafficLight) {
 						TrafficLight tl = (TrafficLight) o;
@@ -214,21 +363,25 @@ public class EditField {
 					} else {
 						switch(i) {
 						case 0:
-							textInput = JOptionPane.showInputDialog(this 
-									 ,Double.toString(b.carsPerSecond));
-							
-							if(textInput != null && textInput != "") {
-								b.carsPerSecond = Double.parseDouble(textInput);
-								CSControl.refreshDisplay();
+							if(b.carRoadCon) {
+								textInput = JOptionPane.showInputDialog(this 
+										 ,Double.toString(b.carsPerSecond));
+								
+								if(textInput != null && textInput != "") {
+									b.carsPerSecond = Double.parseDouble(textInput);
+									CSControl.refreshDisplay();
+								}
 							}
 							break;
 						case 1:
-							textInput = JOptionPane.showInputDialog(this 
-									 ,Double.toString(b.bikesPerSecond));
-							
-							if (textInput != null && textInput != "") {
-								b.bikesPerSecond = Double.parseDouble(textInput);
-								CSControl.refreshDisplay();
+							if(b.bikeRoadCon) {
+								textInput = JOptionPane.showInputDialog(this 
+										 ,Double.toString(b.bikesPerSecond));
+								
+								if (textInput != null && textInput != "") {
+									b.bikesPerSecond = Double.parseDouble(textInput);
+									CSControl.refreshDisplay();
+								}
 							}
 							break;
 						case 2:
@@ -260,7 +413,7 @@ public class EditField {
 									 ,Double.toString(r.maxSpeed));
 							
 							if(textInput != null && textInput != "") {
-								r.maxSpeed = Double.parseDouble(textInput);
+								r.maxSpeed = Float.parseFloat(textInput);
 								CSControl.refreshDisplay();
 							}
 						} else {
@@ -268,14 +421,14 @@ public class EditField {
 									 ,Double.toString(r.SDSpeed));
 							
 							if (textInput != null && textInput != "") {
-								r.SDSpeed = Double.parseDouble(textInput);
+								r.SDSpeed = Float.parseFloat(textInput);
 								CSControl.refreshDisplay();
 							}
 						}
 						break;
 					case 2:
 						textInput = JOptionPane.showInputDialog(this 
-								 ,Double.toString(r.weight()));
+								 ,Float.toString(r.length()));
 						
 						if (textInput != null && textInput != "") {
 							double f = Double.parseDouble(textInput) / r.getWeight();
@@ -326,7 +479,7 @@ public class EditField {
 								 ,Double.toString(veh.speed));
 						
 						if(textInput != null && textInput != "") {
-							veh.speed = Double.parseDouble(textInput);
+							veh.speed = Float.parseFloat(textInput);
 							CSControl.refreshDisplay();
 						}
 						break;
@@ -338,5 +491,9 @@ public class EditField {
 	
 	public static Object o() {
 		return o;
+	}
+
+	public static boolean focus(Object obj) {
+		return (EditField.o != null && EditField.o.equals(obj));
 	}
 }

@@ -22,13 +22,15 @@ public class ScreenGraphics extends JPanel implements Runnable, MouseListener, M
 	private static final long serialVersionUID = 1L;
 	private static Thread thread;
 	
+	public static float speedFactor = 100.0f;
+	
 	public boolean running = false;
 	
 	public static int FRAME_WIDTH, FRAME_HEIGHT, OFFSET_X, OFFSET_Y_TOP, OFFSET_Y_BOT;
 	public long nanoTime = 0;
 	public byte displayWarmUp = 3;
 	
-	public static double ticksPerSecond = 1000;
+	public static double ticksPerSecond = 100;
 	
 	public CSDisplay csdisplay;
 	public CSControl cscontrol;
@@ -78,15 +80,13 @@ public class ScreenGraphics extends JPanel implements Runnable, MouseListener, M
 	
 	public void tick(){
 		// Timed updates
-		if (System.nanoTime() - nanoTime >= Math.pow(10, 9) / (ticksPerSecond) ) {
+		if (System.nanoTime() - nanoTime >= Math.pow(10, 9) / (ticksPerSecond*speedFactor) ) {
 			nanoTime = System.nanoTime();
 			csdisplay.tick();
 			cscontrol.tick();
+			CSDisplay.collectData();
 		}
 		
-		// Spawing updates
-		csdisplay.spawnTick();
-		CSDisplay.collectData();
 	}
 
 	// Events

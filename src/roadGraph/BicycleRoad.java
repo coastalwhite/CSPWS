@@ -2,12 +2,15 @@ package roadGraph;
 
 import java.awt.Color;
 
+import graphics.ScreenGraphics;
 import simulation.*;
 
 public class BicycleRoad extends Road {
 
-	public BicycleRoad(Bend ip1, Bend ip2, double iWeight) {
+	public BicycleRoad(Bend ip1, Bend ip2, float iWeight) {
 		super(ip1, ip2, iWeight);
+		
+		ip1.bikeRoadCon = true;
 		
 		color = Color.RED;
 		arrowColor = Color.BLACK;
@@ -18,21 +21,22 @@ public class BicycleRoad extends Road {
 		this.defaultColor = Color.RED;
 	}
 
-	
 	public void spawnTick() {
 		if(this.b1.bikesPerSecond > 0) {
-			long nanoTime = System.nanoTime();
-			if(prevTime == 0) {
-				prevTime = nanoTime; 
+			if(ticksToSpawn == -1) {
+				ticksToSpawn = randomBinom(b1.bikesPerSecond/ScreenGraphics.ticksPerSecond);
+			} else {
+				if (ticksToSpawn == 0) {
+					vehicles.add(new Bicycle(this));
+					ticksToSpawn = randomBinom(b1.bikesPerSecond/ScreenGraphics.ticksPerSecond);
+					
+					if(ticksToSpawn / ScreenGraphics.ticksPerSecond < (Vehicle.safeDis/maxSpeed)) {
+						ticksToSpawn = (int) (Math.ceil((Vehicle.safeDis/maxSpeed) * ScreenGraphics.ticksPerSecond));
+					}
+				} else {
+					ticksToSpawn--;
+				}
 			}
-			
-			timePassed += (nanoTime - prevTime);
-			if (timePassed / Math.pow(10, 9) >= (1/b1.bikesPerSecond)) {
-				timePassed -= Math.pow(10, 9);
-				this.addVehicle(new Bicycle(maxSpeed, SDSpeed));
-			}
-			
-			prevTime = nanoTime;
 		}
 	}
 }

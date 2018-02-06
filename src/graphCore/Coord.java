@@ -13,10 +13,8 @@ public class Coord {
 	}
 	
 	// Calculation methods
-	public double disTo(Coord coord){ // Returns distance between two coordinates / Pythagoras
-		double distance;
-		
-		distance = Math.sqrt(
+	public float disTo(Coord coord){ // Returns distance between two coordinates / Pythagoras
+		float distance = (float) Math.sqrt(
 						Math.pow(this.X-coord.X(), 2)
 						+
 						Math.pow(this.Y-coord.Y(), 2)

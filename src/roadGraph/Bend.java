@@ -14,12 +14,24 @@ public class Bend extends Point {
 	
 	public double carsPerSecond = 0.0;
 	public double bikesPerSecond = 0.0;
+	
+	public boolean carRoadCon = false;
+	public boolean bikeRoadCon = false;
 
 	public boolean priorityEdit = false;
 	public ArrayList<Road> priorityList;
 
 	public Bend(double iX, double iY) {
 		super(iX, iY);
+		
+		for(Road r : CSDisplay.lines) {
+			r.b1().equals(this);
+			if(r instanceof CarRoad) {
+				this.carRoadCon = true;
+			} else if(r instanceof BicycleRoad) {
+				this.bikeRoadCon = true;
+			}
+		}
 		
 		priorityList = new ArrayList<Road>();
 	}

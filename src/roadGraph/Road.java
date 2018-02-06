@@ -18,31 +18,38 @@ public class Road extends Line {
 	
 	protected Bend b1, b2;
 	
+	public ArrayList<Road> prevRoad;
+	
+	public String debugVal = "";
+	
 	public ArrayList<Road> nextRoad;
 	public ArrayList<Double> nextRoadProbability;
 	
 	public ArrayList<Vehicle> vehicles;
-	public ArrayList<Double> vehicleProgress;
 	
 	public boolean saveDensity = false;
 	public String saveName = "Unknown";
 	public int saveNumber = 0;
 	
-	public double maxSpeed;
-	public double SDSpeed;
+	public float maxSpeed;
+	public float SDSpeed;
 	
-	protected long timePassed = 0;
-	protected long prevTime = 0;
+	public boolean refresh = true;
+	
+	protected int ticksToSpawn = -1;
 	
 	public boolean weightEdit = false;
 	private float vehicleDensity;
-	public Road(Bend ip1, Bend ip2, double iWeight) {
+	private float vehicleAvgSpeed;
+	
+	public Road(Bend ip1, Bend ip2, float iWeight) {
 		super((Point) ip1, (Point) ip2);
 		
 		this.setWeight(iWeight);
 		
 		vehicles = new ArrayList<Vehicle>();
-		vehicleProgress = new ArrayList<Double>();
+		
+		prevRoad = new ArrayList<Road>();
 		
 		nextRoad = new ArrayList<Road>();
 		nextRoadProbability = new ArrayList<Double>();
@@ -59,17 +66,24 @@ public class Road extends Line {
 		this.b1 = this.b2;
 		this.b2 = b;
 	}
-	private void calculateVehicleDensity() {
+	
+	public void resetTime() {
+		ticksToSpawn = -1;
+	}
+	private void calculateData() {
 		double l = 0;
-		int i = 0;
+		float speedTotal = 0.0f;
+		int speedCount = 0;
 		for(Vehicle v : vehicles) {
-			if(vehicleProgress.get(i) > 0) {
+			if(v.p() > 0) {
 				l += v.LENGTH;
+				speedTotal += v.speed;
+				speedCount++;
 			}
-			i++;
 		}
 		
-		this.vehicleDensity = (float) (l / this.weight());
+		this.vehicleAvgSpeed = speedTotal/speedCount;
+		this.vehicleDensity = (float) (l / this.length());
 	}
 	
 	public boolean isIn(Vector2d v) {
@@ -174,55 +188,23 @@ public class Road extends Line {
 		return v1.sumVector(v2.difVector(v1).product(v.Y()));
 	}
 	
-	public void addVehicle(Vehicle c) {
-		Random random = new Random();
-		
-		int chanceTotal = 1000, randomNumber, topLevel;
-		double n = 0;
-		Road nRoad = this;
-		
-		while (nRoad != null) {
-			nRoad.vehicles.add(c);
-			nRoad.vehicleProgress.add(n++*(-1));
-			
-			if(nRoad.nextRoad.size() > 0) {
-				randomNumber = random.nextInt(chanceTotal);
-				
-				topLevel = 0;
-				
-				for(int i = 0; i < nRoad.nextRoad.size(); i++) {
-					topLevel += nRoad.nextRoadProbability.get(i)*1000;
-					if(randomNumber <= topLevel) {
-						topLevel = i;
-						i = nRoad.nextRoad.size();
-						nRoad = nRoad.nextRoad.get(topLevel);
-					}
-				}
-			} else {
-				nRoad = null;
-			}
-		}
-	}
 	public void tick () {
 		for(int i = 0; i < vehicles.size(); i++) {
-			double dp = vehicles.get(i).updateProgress(this);
-			double newProgress = vehicleProgress.get(i) + dp;
-			if(newProgress > 1) {
-				vehicles.remove(i);
-				vehicleProgress.remove(i);
-			} else {
-				if(newProgress > 0) {
-					vehicles.get(i).dp = dp;
-				}
-				vehicleProgress.set(i, vehicleProgress.get(i) + vehicles.get(i).dp);
+			vehicles.get(i).updateProgress();
+		}
+		calculateData();
+		for(Road r : nextRoad) {
+			if(!r.prevRoad.contains(this)) {
+				r.prevRoad.add(this);
 			}
 		}
-		calculateVehicleDensity();
 	}
 	
 	public void renderVehicles(Graphics2D g2d, double displayZoom) {
-		for (int i = 0; i < vehicles.size(); i++) {
-			vehicles.get(i).draw(g2d, this, displayZoom);
+		if(vehicles.size() > 0) {
+			for (int i = 0; i < vehicles.size(); i++) {
+				vehicles.get(i).draw(g2d, this, displayZoom);
+			}
 		}
 	}
 	
@@ -329,12 +311,37 @@ public class Road extends Line {
 					)
 			   );
 	}
+	
+	@SuppressWarnings("unused")
+	public float disToBend(Bend b) {
+		ArrayList<Road> roads = new ArrayList<Road>();
+		ArrayList<Float> distance = new ArrayList<Float>();
+		roads.addAll(nextRoad);
+		for(Road x : nextRoad) {
+			distance.add(0.0f);
+		}
+		Road road;
+		
+		for(int i = 0; i < roads.size(); i++) {
+			road = roads.get(i);
+			if(!road.b2().equals(b)) {
+				if(!road.nextRoad.isEmpty()) {
+					roads.addAll(road.nextRoad);
+					for(Road x : road.nextRoad) {
+						distance.add(distance.get(i)+road.length());
+					}
+				}
+			} else {
+				return distance.get(i)+road.length();
+			}
+		}
+		return -1;
+	}
+	
 	public boolean editWeight(Vector2d mouseV) {
 		int i = 0;
 		for(Road r : nextRoad) {
 			if(r.clickedTextField(mouseV)) {
-				i++;
-				
 				Double currentProbability = this.nextRoadProbability.get(i);
 				String textInput = JOptionPane.showInputDialog(this 
 						 ,Double.toString(currentProbability));
@@ -362,6 +369,7 @@ public class Road extends Line {
 				
 				return true;
 			}
+			i++;
 		}
 		
 		return false;
@@ -406,5 +414,23 @@ public class Road extends Line {
 	
 	public float vehicleDensity() {
 		return vehicleDensity;
+	}
+	
+	public float vehicleAvgSpeed() {
+		return vehicleAvgSpeed;
+	}
+	
+	protected int randomBinom(double prob) {
+		if(prob <= 0 && prob >= 1) {
+			return -1;
+		}
+		Random r = new Random();
+		
+		for(int i = 1; i <= 100000; i++) {
+			if(r.nextInt(100000)<=prob*100000) {
+				return i;
+			}
+		}
+		return 100000;
 	}
 }

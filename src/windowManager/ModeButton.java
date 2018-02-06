@@ -48,6 +48,8 @@ public class ModeButton {
 			
 			CSDisplay.resetEdit();
 			
+			EditField.o = null;
+			
 			JFileChooser fileChooser;
 			CSControl.resetWeightEdit();
 			switch (MODE) {
@@ -68,15 +70,21 @@ public class ModeButton {
 				break;
 			case -1: // Edit Button
 				if(!CSDisplay.PLAY_SIMULATION) {
-					CSControl.EDIT_MODE = CSControl.EDIT_MODE ? false : true;
-					CSControl.MODE = -1;
-					this.innerColor = CSControl.EDIT_MODE ? selectedColor : idleColor;
+					if(CSControl.EDIT_MODE) {
+						CSControl.EDIT_MODE = false;
+						CSControl.MODE = 0;
+						this.innerColor = idleColor;
+						EditField.o = new CSDisplay();
+					} else {
+						CSControl.EDIT_MODE = true;
+						CSControl.MODE = -1;
+						this.innerColor = selectedColor;
+					}
 				} else {
 					CSDisplay.PLAY_SIMULATION = false;
 					CSDisplay.PAUSE = true;
 					for(Road r : CSDisplay.lines) {
 						r.vehicles = new ArrayList<Vehicle>();
-						r.vehicleProgress = new ArrayList<Double>();
 					}
 					CSControl.modebuttons.set(0, new ModeButton(CSControl.POS_X+10+0*CSControl.rowDim, CSControl.POS_Y+10+0*CSControl.rowDim, -1, "Potlood.png"));
 				}
@@ -129,9 +137,14 @@ public class ModeButton {
 			case -5: // New State
 				CSDisplay.resetState();
 				break;
-			case -6: // Start / Stop playing simulation
+			case -6: // Start / Pause playing simulation
 				if(!CSDisplay.PAUSE) {
 					this.imagePath = "Start.png";
+					
+					for(Road r : CSDisplay.lines) {
+						r.resetTime();
+					}
+					
 					CSDisplay.PAUSE = true;
 				} else {
 					CSControl.EDIT_MODE = false;
@@ -139,6 +152,15 @@ public class ModeButton {
 					this.imagePath = "Pause.png";
 					CSDisplay.PLAY_SIMULATION = true;
 					CSDisplay.PAUSE = false;
+					
+					if(CSDisplay.doMeasure && CSDisplay.currentTicks == 0 && CSDisplay.timeRunned == 0) {
+						try {
+							CSControl.loadState("states" + CSControl.slash + CSDisplay.stateName + "_" + Integer.toString(CSDisplay.currentState) + ".txt");
+						} catch (IOException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+					}
 				}
 			default:
 				CSDisplay.MODE = this.MODE;

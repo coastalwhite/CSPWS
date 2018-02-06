@@ -9,7 +9,7 @@ import windowManager.CSDisplay;
 public class Point {
 	
 	protected Coord pos;
-	public static int radius = 3;
+	public static int radius = 5;
 	public Color color = Color.BLACK;
 	
 	public Point(double iX, double iY){
@@ -19,7 +19,7 @@ public class Point {
 	}
 	
 	// Calculation methods
-	public double disTo(Point p){
+	public float disTo(Point p){
 		return pos.disTo(p.pos());
 	}
 	
@@ -31,13 +31,15 @@ public class Point {
 	public void drawPoint(Graphics2D g2d, Vector2d v) {
 		double displayZoom = CSDisplay.displayZoom();
 		
+		double r = radius;
+		
 		// Draw Point(Oval)
 		g2d.setColor(color);
 		g2d.fillOval(
-						v.INTX()-(int) Math.round(radius*Math.pow(displayZoom, -1)),
-						v.INTY()-(int) Math.round(radius*Math.pow(displayZoom, -1)),
-						(int) Math.round(radius*2*Math.pow(displayZoom, -1)),
-						(int) Math.round(radius*2*Math.pow(displayZoom, -1))
+						v.INTX()-(int) Math.round(r*Math.pow(displayZoom, -1)),
+						v.INTY()-(int) Math.round(r*Math.pow(displayZoom, -1)),
+						(int) Math.round(r*2*Math.pow(displayZoom, -1)),
+						(int) Math.round(r*2*Math.pow(displayZoom, -1))
 					);
 	}
 }

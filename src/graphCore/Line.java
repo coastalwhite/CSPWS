@@ -8,14 +8,14 @@ import windowManager.CSDisplay;
 
 public class Line {
 	protected Point p1, p2;
-	protected double weight;
+	protected float weight;
 	public static int lineWidth = 3;
 	public Color color = Color.GRAY;
 	public Color defaultColor;
 	public Color arrowColor = Color.RED;
 	public boolean drawArrow = true;
 	
-	public static double convertFactor = 1.0;
+	public static float convertFactor = 1.0f;
 	
 	public Line(Point ip1, Point ip2){
 		// INIT
@@ -121,15 +121,15 @@ public class Line {
 	public Point p2(){
 		return this.p2;
 	}
-	public double weight(){
-		return this.getWeight() * convertFactor;
+	public float length(){
+		return (float) (this.getWeight() * convertFactor);
 	}
 
 	public double getWeight() {
 		return weight;
 	}
 
-	public void setWeight(double weight) {
-		this.weight = weight;
+	public void setWeight(float iWeight) {
+		this.weight = iWeight;
 	}
 }

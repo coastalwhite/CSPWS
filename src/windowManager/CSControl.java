@@ -32,6 +32,8 @@ public class CSControl {
 	
 	private static boolean displayChanged = true;
 	
+	public static float spawnMultiplier = 1.0f;
+	
 	public static int rowDim = 55;
 
 	public static String slash = "\\";
@@ -49,7 +51,7 @@ public class CSControl {
 		}
 		
 		try {
-			CSControl.loadState("states" + CSControl.slash + "CarTest.txt");
+			CSControl.loadState("states" + CSControl.slash + "RW_26.txt");
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -95,7 +97,7 @@ public class CSControl {
 		
 		modebuttons.add(new ModeButton(POS_X+10+0*rowDim, POS_Y+10+11*rowDim, -5, "NewState.png"));
 		
-		editField = new EditField(null);
+		editField = new EditField(new CSDisplay());
 	}
 	
 	public static boolean getDisplayChanged() {
@@ -118,11 +120,14 @@ public class CSControl {
 		
 		split = Arrays.copyOf(split, split.length-1);
 		
+		String saveName;
+		
 		Road r;
 		Bend b;
 		
 		ArrayList<String> nextRoadStrings = new ArrayList<String>();
 		ArrayList<String> priorityListStrings = new ArrayList<String>();
+		String[] trafficTimings;
 		
 		int bendAmount = 0;
 		
@@ -139,9 +144,13 @@ public class CSControl {
 				switch (prop[2]) {
 				case "Type2":
 					b = new TrafficLight(Double.parseDouble(prop[3]), Double.parseDouble(prop[4]));
-					((TrafficLight) b).TLTimingR = Long.parseLong(prop[6]);
-					((TrafficLight) b).TLTimingG = Long.parseLong(prop[6]);
-					((TrafficLight) b).TLTimingO = Long.parseLong(prop[6]);
+					
+					prop[6] = prop[6].replace('{', '0').replace("}", "");
+					trafficTimings = prop[6].split(";");
+					
+					((TrafficLight) b).TLTimingR = Long.parseLong(trafficTimings[0]);
+					((TrafficLight) b).TLTimingG = Long.parseLong(trafficTimings[1]);
+					((TrafficLight) b).TLTimingO = Long.parseLong(trafficTimings[2]);
 					bends.add(b);
 					break;
 				case "Type3":
@@ -151,8 +160,8 @@ public class CSControl {
 				default:
 					b = new Bend(Double.parseDouble(prop[3]), Double.parseDouble(prop[4]));
 					if(prop.length > 5) {
-						b.carsPerSecond = Double.parseDouble(prop[6]);
-						b.bikesPerSecond = Double.parseDouble(prop[7]);
+						b.carsPerSecond = spawnMultiplier*Double.parseDouble(prop[6]);
+						b.bikesPerSecond = spawnMultiplier*Double.parseDouble(prop[7]);
 					}
 					bends.add(b);
 					break;
@@ -165,21 +174,31 @@ public class CSControl {
 				case "Type1":
 					r = new CarRoad(bends.get(Integer.parseInt(prop[3])-1), bends.get(Integer.parseInt(prop[4])-1), bends.get(Integer.parseInt(prop[3])-1).disTo(bends.get(Integer.parseInt(prop[4])-1)));
 					a = prop[5].replace('{', '0').replace('}', '0');
-					r.maxSpeed = Double.parseDouble(a.split(";")[0]);
-					r.SDSpeed = Double.parseDouble(a.split(";")[1]);
+					r.maxSpeed = Float.parseFloat(a.split(";")[0]);
+					r.SDSpeed = Float.parseFloat(a.split(";")[1]);
 					roads.add(r);
 					
 					nextRoadStrings.add(prop[6]);
+					saveName = prop[7].replace("{", "").replace("}","").replace("Unknown","");
+					if(!saveName.isEmpty()) {
+						r.saveDensity = true;
+						r.saveName = saveName;
+					}
 					
 					break;
 				case "Type2":
 					r = new BicycleRoad(bends.get(Integer.parseInt(prop[3])-1), bends.get(Integer.parseInt(prop[4])-1), bends.get(Integer.parseInt(prop[3])-1).disTo(bends.get(Integer.parseInt(prop[4])-1)));
 					a = prop[5].replace('{', '0').replace('}', '0');
-					r.maxSpeed = Double.parseDouble(a.split(";")[0]);
-					r.SDSpeed = Double.parseDouble(a.split(";")[1]);
+					r.maxSpeed = Float.parseFloat(a.split(";")[0]);
+					r.SDSpeed = Float.parseFloat(a.split(";")[1]);
 					roads.add(r);
 					
 					nextRoadStrings.add(prop[6]);
+					saveName = prop[7].replace("{", "").replace("}","").replace("Unknown","");
+					if(!saveName.isEmpty()) {
+						r.saveDensity = true;
+						r.saveName = saveName;
+					}
 					
 					break;
 				/*case "Type3":
@@ -270,7 +289,7 @@ public class CSControl {
 				type = "Type3";
 			} else if(b instanceof TrafficLight) {
 				type = "Type2";
-				str = Long.toString(((TrafficLight) b).TLTimingR);
+				str = "{" + Long.toString(((TrafficLight) b).TLTimingR) + ";" + Long.toString(((TrafficLight) b).TLTimingG) + ";" + Long.toString(((TrafficLight) b).TLTimingO) + "}";
 			} else {
 				type = "Type1";
 				str = Double.toString(b.carsPerSecond) + "," + Double.toString(b.bikesPerSecond);
@@ -326,7 +345,7 @@ public class CSControl {
 					str += ";";
 				}
 			}
-			str += "}>";
+			str += "}" + ",{" + r.saveName + "}>";
 			
 			writer.println(str);
 		}
@@ -388,7 +407,7 @@ public class CSControl {
 			modebuttons.get(2).attemptToClick(mouseV);
 		}
 		
-		if(MODE == 8) {
+		if(EditField.o != null) {
 			editField.attemptToClick(mouseV);
 		}
 	}
@@ -419,12 +438,11 @@ public class CSControl {
 				modebuttons.get(2).draw(g2d);
 			}
 			
-			if(MODE == 8) {
+			if(EditField.o != null) {
 				editField.draw(g2d);
 			}
 			
 			displayChanged = false;
 		}
 	}
-
 }

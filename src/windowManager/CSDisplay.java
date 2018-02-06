@@ -59,6 +59,19 @@ public class CSDisplay {
 	
 	public static ArrayList<Double> factors     =      new ArrayList<Double>();
 	
+	public static boolean doMeasure            =                         false;
+	public static String stateName			   = 						  "RW";
+	public static float warmUpHours            =                          0.25f;
+	public static int warmUpTicks              = (int) (warmUpHours*3600*ScreenGraphics.ticksPerSecond);
+	
+	public static float runHours               = 							2f;
+	public static int resetTicks                      = (int) (runHours*3600*ScreenGraphics.ticksPerSecond) + warmUpTicks;
+	public static int currentTicks             =                            0;
+	public static int switchRun				   =                            4;
+	public static int timeRunned               =                            0;
+	public static int currentState			   = 							1;
+	public static int maxState				   =                           28;
+	
 	// Simulation Settings
 	public static boolean PLAY_SIMULATION       =                        false;
 	public static boolean PAUSE                 =                         true;
@@ -67,7 +80,7 @@ public class CSDisplay {
 	
 	// Data Collection
 	public static float collectSeconds 			=	 						 1;
-	public static long nanoTime                 =							 0;
+	public static int ticksDoneSince            =							 0;
 	
 	// Non Static
 	private boolean clickedText = false;
@@ -204,7 +217,6 @@ public class CSDisplay {
 					
 					for(Road r : lines) {
 						if(r.nextRoad.contains(road)) {
-							System.out.println("hi!");
 							r.nextRoadProbability.remove(r.nextRoad.indexOf(road));
 							r.nextRoad.remove(road);
 							r.organizeNextRoad(1);
@@ -222,7 +234,6 @@ public class CSDisplay {
 			} else if(o instanceof Road) {
 				for(Road r : lines) {
 					if(r.nextRoad.contains((Road) o)) {
-						System.out.println("hi!");
 						r.nextRoadProbability.remove(r.nextRoad.indexOf(o));
 						r.nextRoad.remove(o);
 						r.organizeNextRoad(1);
@@ -537,9 +548,10 @@ public class CSDisplay {
 			CSDisplay.MODE = 0;
 			CSControl.MODE = 0;
 			
+			point_vectors[0] = null;
+			point_vectors[1] = null;
 			textInput = null;
 		} else {
-			System.out.println("hi!1");
 			if (mouseV.inRange(POS_X, POS_X+WIDTH, POS_Y, POS_Y+HEIGHT)) {
 				point_vectors[0] = mouseV.getTransformRS(displayZoom).sumVector(displayPosition);
 				point_vectors[1] = null;
@@ -776,6 +788,40 @@ public class CSDisplay {
 			for(Road r : lines) {
 				r.tick();
 			}
+			
+			for(Road r : lines) {
+				r.spawnTick();
+			}
+			for(Bend b : points) {
+				if(b instanceof TrafficLight) {
+					((TrafficLight) b).trafficUpdate();
+				}
+			}
+			if(currentTicks == resetTicks && doMeasure) {
+				currentTicks = 0;
+				for(Road r : lines) {
+					r.vehicles = new ArrayList<Vehicle>();
+					r.saveNumber = 0;
+				}
+				timeRunned++;
+				if(timeRunned == switchRun+1) {
+					currentState++;
+					
+					if(currentState == maxState) {
+						System.exit(0);
+					}
+					
+					try {
+						CSControl.loadState("states" + CSControl.slash + stateName + "_" + Integer.toString(currentState) + ".txt");
+					} catch (IOException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+					timeRunned = 0;
+				}
+			} else {
+				currentTicks++;
+			}
 		}
 		if (!CLICK_DOWN) { MainWindow.GUI.setCursor(Cursor.getDefaultCursor()); }
 	}
@@ -869,7 +915,7 @@ public class CSDisplay {
 		
 		if(PLAY_SIMULATION) {
 			for (Road r : lines) {
-				if(r.vehicles.size() != 0) {
+				if(r.vehicles.size() != 0 || r.refresh) {
 					r.attemptToRender(g2d);
 					
 					if(r.b1() instanceof TrafficLight) { r.b1().attemptToRender(g2d); }
@@ -883,19 +929,6 @@ public class CSDisplay {
 		}
 	}
 
-	public void spawnTick() {
-		if (PLAY_SIMULATION) {
-			for(Road r : lines) {
-					r.spawnTick();
-			}
-			for(Bend b : points) {
-				if(b instanceof TrafficLight) {
-					((TrafficLight) b).trafficUpdate();
-				}
-			}
-		}
-	}
-
 	public static void calcFactor() {
 		double sum = 0;
 		
@@ -903,26 +936,34 @@ public class CSDisplay {
 				sum += f;
 			}
 		
-		Line.convertFactor = sum / factors.size();
+		Line.convertFactor = (float) (sum / factors.size());
 	}
 	
 	public static void collectData() {
-		if(!PAUSE && PLAY_SIMULATION) {
-			if ( System.nanoTime() - nanoTime >= Math.pow(10, 9) * collectSeconds ) {
-				nanoTime = System.nanoTime();
+		if((!PAUSE && PLAY_SIMULATION) && ((currentTicks > warmUpTicks && doMeasure) || !doMeasure)) {
+			String fileName = "";
+			if ( ticksDoneSince >= collectSeconds * ScreenGraphics.ticksPerSecond ) {
 				for(Road r : lines) {
 					if(r.saveDensity) {
+						if(doMeasure) {
+							fileName = "data" + CSControl.slash + r.saveName + "_VehicleData_" + currentState + "_" + timeRunned + ".txt";
+						} else {
+							fileName = "data" + CSControl.slash + r.saveName + "_VehicleData" + ".txt";
+						}
 						try {
 							PrintWriter writer = new PrintWriter(new FileOutputStream(
-								    new File("data" + CSControl.slash + r.saveName + "_VEHICLE-DENSITY-DATA.txt"), 
+								    new File(fileName), 
 								    true)); 
-							writer.println(++r.saveNumber + "\t" + r.vehicleDensity());
+							writer.println(++r.saveNumber + "\t" + Double.toString(r.vehicleDensity()).replace('.',',') + "\t" + Double.toString(r.vehicleAvgSpeed()).replace('.',',') );
 							writer.close();
 						}catch (IOException e) {
 						    //exception handling left as an exercise for the reader
 						}
 					}
 				}
+				ticksDoneSince = 0;
+			} else {
+				ticksDoneSince++;
 			}
 		}
 	}
